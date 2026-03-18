@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDH Calculators</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f7f8fa;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 24px;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 32px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+    p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #4b5563;
+    }
+    .links {
+      display: grid;
+      gap: 16px;
+      margin-top: 28px;
+    }
+    .link-card {
+      display: block;
+      text-decoration: none;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      color: inherit;
+    }
+    .link-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      border-color: #cbd5e1;
+    }
+    .link-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .link-desc {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .footer {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    code {
+      background: #eef2f7;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>EDH Calculators</h1>
+      <p>
+        Please use the links below to open the available estimation calculators.
+      </p>
+
+      <div class="links">
+        <a class="link-card" href="EDH_Estimation_Calculator_Phase1.html">
+          <div class="link-title">EDH Estimation Calculator – Phase 1</div>
+          <div class="link-desc">Open the Phase 1 calculator.</div>
+        </a>
+
+        <a class="link-card" href="HighLevel_Estimation.html">
+          <div class="link-title">High Level Estimation Calculator</div>
+          <div class="link-desc">Open the high level estimation calculator.</div>
+        </a>
+      </div>
+
+      <div class="footer">
+        Upload this file as <code>index.html</code> to the root of your <code>edh-calculators</code> repository.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
