@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDH Delivery Estimator — Phase 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f12;
+    --surface: #13161b;
+    --surface2: #1a1e25;
+    --surface3: #21262f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #5a5f6e;
+    --accent: #4f9cf9;
+    --accent2: #2d7ef7;
+    --accent-glow: rgba(79,156,249,0.15);
+    --green: #3ecf8e;
+    --green-bg: rgba(62,207,142,0.1);
+    --amber: #f6a623;
+    --amber-bg: rgba(246,166,35,0.1);
+    --red: #f26b6b;
+    --red-bg: rgba(242,107,107,0.1);
+    --purple: #a78bfa;
+    --purple-bg: rgba(167,139,250,0.1);
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── LAYOUT ── */
+  .app { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-logo {
+    padding: 0 24px 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .logo-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .logo-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-family: var(--font-mono);
+  }
+
+  .nav-section {
+    padding: 0 16px;
+    margin-bottom: 6px;
+  }
+  .nav-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text2);
+    transition: all 0.15s;
+    font-family: var(--font-body);
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-glow); color: var(--accent); }
+  .nav-item .step-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .nav-item.active .step-num {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .nav-item.done .step-num {
+    background: var(--green-bg);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .nav-item.done { color: var(--text2); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 20px 24px 0;
+    border-top: 1px solid var(--border);
+  }
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-glow);
+    border: 1px solid rgba(79,156,249,0.2);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  .phase-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1;
+    padding: 40px 48px;
+    max-width: 860px;
+  }
+
+  .step-panel { display: none; }
+  .step-panel.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  .step-header { margin-bottom: 32px; }
+  .step-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .step-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.15;
+    margin-bottom: 8px;
+  }
+  .step-desc { font-size: 14px; color: var(--text2); max-width: 560px; }
+
+  /* ── FORM ELEMENTS ── */
+  .field-group { margin-bottom: 24px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+    font-family: var(--font-mono);
+  }
+  label .required { color: var(--accent); margin-left: 2px; }
+
+  input[type="text"], input[type="email"], input[type="date"], select, textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 10px 13px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  select option { background: var(--surface2); }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ── SCENARIO CARDS ── */
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .scenario-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .scenario-card:hover { border-color: var(--border2); background: var(--surface3); }
+  .scenario-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .scenario-card input[type="radio"] { display: none; }
+  .scenario-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
+  .scenario-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+    font-family: var(--font-display);
+  }
+  .scenario-desc { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  .scenario-card.selected .scenario-name { color: var(--accent); }
+  .scenario-card.pre-scenario { border-color: var(--amber-bg); }
+  .scenario-card.pre-scenario.selected { border-color: var(--amber); background: var(--amber-bg); }
+  .scenario-card.pre-scenario.selected .scenario-name { color: var(--amber); }
+  .scenario-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-size: 9px;
+    font-family: var(--font-mono);
+    padding: 2px 6px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .badge-gap { background: var(--purple-bg); color: var(--purple); }
+  .badge-hold { background: var(--amber-bg); color: var(--amber); }
+  .badge-new { background: var(--green-bg); color: var(--green); }
+
+  /* ── QUESTION SECTIONS ── */
+  .q-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .q-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .q-section-header:hover { background: var(--surface2); }
+  .q-section-left { display: flex; align-items: center; gap: 12px; }
+  .q-team-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .q-section-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .q-section-subtitle { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .q-chevron { color: var(--text3); transition: transform 0.2s; font-size: 12px; }
+  .q-section.open .q-chevron { transform: rotate(180deg); }
+  .q-section-body { padding: 0 18px 16px; display: none; }
+  .q-section.open .q-section-body { display: block; }
+
+  /* ── QUESTION ITEMS ── */
+  .q-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .q-item:last-child { border-bottom: none; }
+  .q-text {
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+  .q-why {
+    font-size: 11px;
+    color: var(--accent);
+    opacity: 0.75;
+    margin-bottom: 10px;
+    font-style: italic;
+    padding: 4px 10px;
+    border-left: 2px solid rgba(79,156,249,0.3);
+    background: rgba(79,156,249,0.04);
+    border-radius: 0 4px 4px 0;
+    line-height: 1.5;
+  }
+  .q-options { display: flex; gap: 8px; flex-wrap: wrap; }
+  .q-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--surface3);
+    color: var(--text2);
+    font-size: 12px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .q-btn:hover { border-color: var(--accent); color: var(--text); }
+  .q-btn.selected-yes { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .q-btn.selected-no  { background: rgba(242,107,107,0.18); border-color: #f26b6b; color: #f26b6b; font-weight:500; }
+  .q-btn.selected-high   { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .q-btn.selected-medium { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+  .q-btn.selected-low    { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .q-btn.selected-val    { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+
+  /* number input for multi-source */
+  .q-num-input {
+    width: 80px;
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 6px 10px;
+    outline: none;
+    text-align: center;
+  }
+  .q-num-input:focus { border-color: var(--accent); }
+
+  /* ── SCORING BAR ── */
+  .score-bar-wrap {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .score-label { font-size: 11px; color: var(--text3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; min-width: 90px; }
+  .score-track { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.4s ease; }
+  .score-val { font-family: var(--font-mono); font-size: 14px; font-weight: 500; color: var(--accent); min-width: 30px; text-align: right; }
+
+  /* ── RESULTS ── */
+  .results-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .results-hidden { opacity: 0.3; pointer-events: none; filter: blur(2px); }
+
+  .result-headline {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .result-days {
+    font-family: var(--font-display);
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .result-days-label { font-size: 13px; color: var(--text2); }
+  .result-size-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid;
+    margin-left: auto;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+  .stat-card-label { font-size: 10px; color: var(--text3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .stat-card-val { font-size: 22px; font-weight: 500; font-family: var(--font-display); color: var(--text); }
+  .stat-card-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* team allocation bars */
+  .team-bars { margin-top: 4px; }
+  .team-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .team-bar-row:last-child { border-bottom: none; }
+  .team-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .team-name { font-size: 12px; color: var(--text2); min-width: 130px; }
+  .team-track { flex: 1; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .team-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .team-days { font-family: var(--font-mono); font-size: 11px; color: var(--text2); min-width: 55px; text-align: right; }
+  .team-pct  { font-family: var(--font-mono); font-size: 10px; color: var(--text3); min-width: 32px; text-align: right; }
+
+  /* ── NAVIGATION BUTTONS ── */
+  .nav-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+    border: none;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(79,156,249,0.3); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text2);
+    border: 1px solid var(--border2);
+  }
+  .btn-secondary:hover { background: var(--surface3); color: var(--text); }
+  .btn-calculate {
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    color: #fff;
+    font-size: 14px;
+    padding: 12px 28px;
+  }
+  .btn-calculate:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,156,249,0.35); }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+  .section-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
+  }
+
+  /* ── SCENARIO CONTEXT CARD ── */
+  .context-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .context-card strong { color: var(--text); font-weight: 500; }
+
+  /* ── TOOLTIP ── */
+  .info-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    font-size: 9px;
+    color: var(--text3);
+    cursor: help;
+    vertical-align: middle;
+    margin-left: 4px;
+    font-family: var(--font-mono);
+  }
+
+  /* ── PROGRESS ── */
+  .progress-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 3px;
+    background: var(--surface3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .progress-label { font-family: var(--font-mono); font-size: 11px; color: var(--text3); min-width: 40px; text-align: right; }
+
+  /* hide step 4 warning */
+  .results-placeholder {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .results-placeholder .big-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+  .results-placeholder p { font-size: 13px; }
+
+  .scrollable { max-height: 420px; overflow-y: auto; padding-right: 4px; }
+  .scrollable::-webkit-scrollbar { width: 3px; }
+  .scrollable::-webkit-scrollbar-track { background: transparent; }
+  .scrollable::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+  /* ── MANAGEMENT SUMMARY ── */
+  .mgmt-card{background:#fafaf8;border:1px solid #e0ddd6;border-radius:12px;overflow:hidden;margin-top:8px;}
+  .mgmt-header{background:#1a1a1a;padding:20px 24px;}
+  .mgmt-eyebrow{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#666;font-family:var(--font-mono);margin-bottom:3px;}
+  .mgmt-proj-name{font-size:20px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:6px;font-family:var(--font-display);}
+  .mgmt-proj-meta{font-size:11px;color:#888;display:flex;gap:16px;flex-wrap:wrap;}
+  .mgmt-proj-meta strong{color:#aaa;font-weight:500;}
+  .mgmt-conf{display:flex;align-items:center;gap:10px;padding:10px 24px;border-bottom:1px solid #e0ddd6;}
+  .mgmt-conf-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .mgmt-conf-dot.validated{background:#2d8a57;}
+  .mgmt-conf-dot.hold{background:#c0392b;}
+  .mgmt-conf-label{font-size:11px;font-weight:500;font-family:var(--font-mono);}
+  .mgmt-conf-label.validated{color:#1a5c3a;}
+  .mgmt-conf-label.hold{color:#5c1a1a;}
+  .mgmt-conf-desc{font-size:11px;color:#6a6a6a;line-height:1.5;}
+  .mgmt-body{padding:20px 24px;}
+  .mgmt-desc{font-size:13px;color:#3a3a3a;line-height:1.7;margin-bottom:18px;padding:12px 16px;background:#f4f2ec;border-radius:8px;border-left:3px solid #c0bcb0;}
+  .mgmt-hl-row{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:18px;padding:16px 20px;background:#1a1a1a;border-radius:10px;}
+  .mgmt-days-big{font-size:52px;font-weight:700;color:#fff;line-height:1;font-family:var(--font-display);}
+  .mgmt-days-lbl{font-size:12px;color:#888;margin-top:2px;}
+  .mgmt-stats-mini{display:flex;gap:14px;align-items:center;}
+  .mgmt-vdiv{width:1px;height:36px;background:#2a2a2a;}
+  .mgmt-stat-mini-val{font-size:22px;font-weight:600;color:#fff;font-family:var(--font-display);}
+  .mgmt-stat-mini-lbl{font-size:10px;color:#666;line-height:1.3;}
+  .mgmt-size-chip{padding:8px 16px;border-radius:8px;text-align:center;}
+  .mgmt-size-chip-val{font-size:26px;font-weight:700;line-height:1;font-family:var(--font-display);}
+  .mgmt-size-chip-lbl{font-size:9px;font-family:var(--font-mono);letter-spacing:.06em;margin-top:2px;}
+  .mgmt-section-lbl{font-size:9px;font-weight:500;color:#8a8a8a;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #e8e6e0;}
+  .mgmt-effort-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#e0ddd6;border:1px solid #e0ddd6;border-radius:8px;overflow:hidden;margin-bottom:18px;}
+  .mgmt-effort-cell{background:#fff;padding:12px 14px;}
+  .mgmt-effort-lbl{font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-mono);margin-bottom:3px;}
+  .mgmt-effort-val{font-size:18px;font-weight:500;color:#1a1a1a;font-family:var(--font-display);}
+  .mgmt-effort-sub{font-size:10px;color:#8a8a8a;margin-top:1px;}
+  .mgmt-client-block{background:#e8eef5;border:1px solid #c0d0e0;border-radius:8px;padding:14px 16px;margin-bottom:18px;}
+  .mgmt-client-title{font-size:9px;font-weight:500;color:#1a3a5c;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:8px;}
+  .mgmt-client-row{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #d0dce8;font-size:12px;}
+  .mgmt-client-row:last-child{border-bottom:none;padding-bottom:0;}
+  .mgmt-client-lbl{font-weight:500;color:#1a3a5c;min-width:130px;flex-shrink:0;}
+  .mgmt-client-val{color:#2a3a4a;line-height:1.5;}
+  .mgmt-risk-list{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
+  .mgmt-risk-item{display:flex;gap:10px;padding:9px 13px;border:1px solid #e0ddd6;border-left:3px solid #c0bcb0;border-radius:0 8px 8px 0;background:#fff;font-size:12px;color:#4a4a4a;line-height:1.5;}
+  .mgmt-risk-item.r1{border-left-color:#c0392b;}
+  .mgmt-risk-item.r2{border-left-color:#c47a00;}
+  .mgmt-risk-item.r3{border-left-color:#c0bcb0;}
+  .mgmt-risk-num{font-family:var(--font-mono);font-size:10px;color:#8a8a8a;flex-shrink:0;min-width:14px;}
+  .mgmt-next{background:#1a1a1a;border-radius:8px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start;}
+  .mgmt-next-arrow{font-size:20px;color:#fff;flex-shrink:0;margin-top:1px;}
+  .mgmt-next-lbl{font-size:9px;color:#666;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:4px;}
+  .mgmt-next-text{font-size:12px;color:#e8e8e8;line-height:1.55;}
+  .mgmt-next-text strong{color:#fff;font-weight:500;}
+  .mgmt-footer{padding:10px 24px;border-top:1px solid #e0ddd6;display:flex;justify-content:space-between;font-size:9px;color:#aaa;font-family:var(--font-mono);}
+  .mgmt-print-row{display:flex;justify-content:flex-end;gap:8px;padding:10px 24px 14px;}
+  .mgmt-print-btn{padding:7px 16px;border-radius:6px;border:1px solid #e0ddd6;background:#fff;font-size:11px;color:#4a4a4a;cursor:pointer;transition:all .15s;}
+  .mgmt-print-btn:hover{border-color:#1a3a5c;color:#1a3a5c;}
+
+  /* ── README OVERLAY ── */
+  .readme-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 1000; display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .readme-overlay.open { display: flex; }
+  .readme-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    width: 100%; max-width: 760px;
+    max-height: 88vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .readme-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .readme-topbar-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
+  .readme-topbar-sub { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--font-mono); }
+  .readme-close {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--surface3); border: 1px solid var(--border2);
+    color: var(--text2); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all .15s;
+  }
+  .readme-close:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .readme-tabs {
+    display: flex; gap: 4px; padding: 12px 24px 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  .readme-tab {
+    padding: 6px 14px; border-radius: 20px 20px 0 0;
+    font-size: 11px; font-weight: 500; cursor: pointer;
+    border: 1px solid transparent; border-bottom: none;
+    color: var(--text2); background: transparent; transition: all .12s;
+  }
+  .readme-tab:hover { color: var(--text); }
+  .readme-tab.active {
+    background: var(--surface2); border-color: var(--border2);
+    color: var(--accent); border-bottom: 1px solid var(--surface2);
+    margin-bottom: -1px;
+  }
+  .readme-body { overflow-y: auto; padding: 24px; flex: 1; }
+  .readme-body::-webkit-scrollbar { width: 4px; }
+  .readme-body::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+  .readme-rpanel { display: none; }
+  .readme-rpanel.active { display: block; }
+  .rm-section { margin-bottom: 1.5rem; }
+  .rm-section-title {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: var(--text); margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .rm-prose { font-size: 13px; color: var(--text2); line-height: 1.75; margin-bottom: 10px; }
+  .rm-prose strong { color: var(--text); font-weight: 500; }
+  .rm-steps { display: flex; flex-direction: column; gap: 8px; }
+  .rm-step { display: flex; gap: 12px; padding: 11px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; }
+  .rm-step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-glow); border: 1px solid rgba(79,156,249,.3);
+    color: var(--accent); font-size: 10px; font-family: var(--font-mono);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .rm-step-body { font-size: 12px; color: var(--text2); line-height: 1.65; }
+  .rm-step-body strong { display: block; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+  .rm-callout {
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 10px;
+    font-size: 12px; line-height: 1.65;
+  }
+  .rm-callout.warn { background: var(--amber-bg); border-left: 3px solid var(--amber); color: #b8710a; }
+  .rm-callout.warn strong { color: #7a4a06; font-weight: 500; }
+  .rm-callout.info { background: var(--accent-glow); border-left: 3px solid var(--accent); color: var(--text2); }
+  .rm-callout.info strong { color: var(--text); font-weight: 500; }
+  .rm-def-list { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+  .rm-def-row { display: flex; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .rm-def-row:last-child { border-bottom: none; }
+  .rm-def-row:nth-child(even) { background: var(--surface2); }
+  .rm-def-term { font-weight: 500; color: var(--text); min-width: 150px; flex-shrink: 0; }
+  .rm-def-body { color: var(--text2); line-height: 1.55; }
+  .rm-pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; margin: 0 2px; vertical-align: middle; }
+  .rm-pill.g { background: var(--green-bg); color: var(--green); }
+  .rm-pill.a { background: var(--amber-bg); color: var(--amber); }
+  .rm-pill.r { background: var(--red-bg); color: var(--red); }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-tag">AWS / EDH</div>
+      <div class="logo-title">Delivery<br>Estimator</div>
+      <div class="logo-sub">Phase 1 — Estimation</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Steps</div>
+      <div class="nav-item active" id="nav-1" onclick="goTo(1)">
+        <span class="step-num">1</span>
+        <div>
+          <div>Project intake</div>
+          <div style="font-size:10px;color:var(--text3);">Name, requester, date</div>
+        </div>
+      </div>
+      <div class="nav-item" id="nav-2" onclick="goTo(2)">
+        <span class="step-num">2</span>
+        <div>
+          <div>Scenario</div>
+          <div style="font-size:10px;color:var(--text3);">Select delivery type</div>
+        </div>
+      </div>
+      <div class="nav-item" id="nav-3" onclick="goTo(3)">
+        <span class="step-num">3</span>
+        <div>
+          <div>Team questions</div>
+          <div style="font-size:10px;color:var(--text3);">Complexity scoring</div>
+        </div>
+      </div>
+      <div class="nav-item" id="nav-4" onclick="goTo(4)">
+        <span class="step-num">4</span>
+        <div>
+          <div>Estimate</div>
+          <div style="font-size:10px;color:var(--text3);">Days, sprints, teams</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="phase-badge">Phase 1 · Estimation</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:10px;line-height:1.5;">Phase 2 will add cost calculation and rate card output.</div>
+      <button onclick="openReadme()" style="margin-top:14px;width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;font-family:var(--font-body);cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">? How to use this tool</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- STEP 1: PROJECT INTAKE -->
+    <div class="step-panel active" id="step-1">
+      <div class="progress-header">
+        <div class="progress-track"><div class="progress-fill" style="width:25%"></div></div>
+        <div class="progress-label">1 / 4</div>
+      </div>
+      <div class="step-header">
+        <div class="step-tag">Step 01</div>
+        <div class="step-title">Project intake</div>
+        <div class="step-desc">Capture the project basics. This information flows into the summary output and the project register.</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label>Project number <span class="required">*</span></label>
+          <input type="text" id="proj-num" placeholder="e.g. P-0154" oninput="updateSidebar()">
+        </div>
+        <div class="field-group">
+          <label>Intake date <span class="required">*</span></label>
+          <input type="date" id="proj-date">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>Project / Initiative name <span class="required">*</span></label>
+        <input type="text" id="proj-name" placeholder="e.g. HR Core Reports Phase 2 — Dashboards" oninput="updateSidebar()">
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label>Requester name <span class="required">*</span></label>
+          <input type="text" id="req-name" placeholder="Full name">
+        </div>
+        <div class="field-group">
+          <label>Requester team</label>
+          <input type="text" id="req-team" placeholder="e.g. Workwise, Finance, HR">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>Requester email</label>
+        <input type="email" id="req-email" placeholder="name@company.com">
+      </div>
+
+      <div class="field-group">
+        <label>Client / Sponsor</label>
+        <input type="text" id="client" placeholder="Business sponsor or client name">
+      </div>
+
+      <div class="field-group">
+        <label>Project description <span class="required">*</span></label>
+        <textarea id="proj-desc" placeholder="What is this project trying to achieve? What problem does it solve for the business?" style="min-height:88px;"></textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Additional notes</label>
+        <textarea id="notes" placeholder="Any constraints, dependencies, or context worth capturing at intake..."></textarea>
+      </div>
+
+      <div class="nav-buttons">
+        <div></div>
+        <button class="btn btn-primary" onclick="goTo(2)">Next: Select scenario →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: SCENARIO SELECTION -->
+    <div class="step-panel" id="step-2">
+      <div class="progress-header">
+        <div class="progress-track"><div class="progress-fill" style="width:50%"></div></div>
+        <div class="progress-label">2 / 4</div>
+      </div>
+      <div class="step-header">
+        <div class="step-tag">Step 02</div>
+        <div class="step-title">Select delivery scenario</div>
+        <div class="step-desc">Choose the scenario that best describes this project. The scenario determines which questions are surfaced in step 3 and drives the estimation engine.</div>
+      </div>
+
+      <div class="section-label">Standard delivery scenarios</div>
+      <div class="scenario-grid" id="scenario-grid">
+
+        <label class="scenario-card" onclick="selectScenario('S1')">
+          <input type="radio" name="scenario" value="S1">
+          <div class="scenario-num">S1</div>
+          <div class="scenario-name">New ingestion → Gold/Semantic</div>
+          <div class="scenario-desc">Files/APIs received; pipelines land data and move to Gold and/or Semantic (Redshift).</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('S2')">
+          <input type="radio" name="scenario" value="S2">
+          <div class="scenario-num">S2</div>
+          <div class="scenario-name">Bronze → Silver → Gold</div>
+          <div class="scenario-desc">Data already in EDH Bronze. Work is transformation and layer movement only — no new ingestion.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('S3')">
+          <input type="radio" name="scenario" value="S3">
+          <div class="scenario-num">S3</div>
+          <div class="scenario-name">Gold → Semantic (Redshift)</div>
+          <div class="scenario-desc">Curated Gold data modeled into agreed Semantic/Redshift structures (grain, joins, conformed dims).</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('S4')">
+          <input type="radio" name="scenario" value="S4">
+          <div class="scenario-num">S4</div>
+          <div class="scenario-name">Redshift → Dashboards</div>
+          <div class="scenario-desc">Data already modeled. Focus is BI dataset/dashboard build plus validation only.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('S5')">
+          <input type="radio" name="scenario" value="S5">
+          <div class="scenario-num">S5</div>
+          <div class="scenario-name">Hybrid A — Light</div>
+          <div class="scenario-desc">Some EDH data exists; minimal reconciliation; limited ingestion and transformations.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('S6')">
+          <input type="radio" name="scenario" value="S6">
+          <div class="scenario-num">S6</div>
+          <div class="scenario-name">Hybrid B — Heavy</div>
+          <div class="scenario-desc">Mix of existing EDH + new ingestion; governance review, semantic alignment, downstream impact analysis.</div>
+        </label>
+
+      </div>
+
+      <div class="section-label" style="margin-top:20px;">Additional delivery scenarios</div>
+      <div class="scenario-grid">
+
+        <label class="scenario-card" onclick="selectScenario('G1')">
+          <input type="radio" name="scenario" value="G1">
+          <div class="scenario-num">G1</div>
+          <div class="scenario-name">Platform migration / cutover</div>
+          <div class="scenario-desc">Migrating existing data product from legacy platform into EDH. Parallel-run, cutover, rollback.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('G2')">
+          <input type="radio" name="scenario" value="G2">
+          <div class="scenario-num">G2</div>
+          <div class="scenario-name">Break-fix / incident</div>
+          <div class="scenario-desc">Something in production is broken. Investigate → root-cause → fix → validate. Scope unknown at start.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('G3')">
+          <input type="radio" name="scenario" value="G3">
+          <div class="scenario-num">G3</div>
+          <div class="scenario-name">Change request — live delivery</div>
+          <div class="scenario-desc">Client requests change to something in production. Starts with impact assessment, then regression testing.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('G4')">
+          <input type="radio" name="scenario" value="G4">
+          <div class="scenario-num">G4</div>
+          <div class="scenario-name">Multi-source consolidation</div>
+          <div class="scenario-desc">3+ source systems consolidated into a single unified data product. Non-linear complexity scaling.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('G5')">
+          <input type="radio" name="scenario" value="G5">
+          <div class="scenario-num">G5</div>
+          <div class="scenario-name">Self-service / analytics enablement</div>
+          <div class="scenario-desc">Provisioning existing EDH data for a business team to access themselves. No pipeline build — access + capability.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('G6')">
+          <input type="radio" name="scenario" value="G6">
+          <div class="scenario-num">G6</div>
+          <div class="scenario-name">DQ / governance remediation</div>
+          <div class="scenario-desc">Fixing known data quality issues, implementing missing DQ rules, or conducting a commissioned data audit.</div>
+        </label>
+
+        <label class="scenario-card" onclick="selectScenario('G7')">
+          <input type="radio" name="scenario" value="G7">
+          <div class="scenario-num">G7</div>
+          <div class="scenario-name">API delivery</div>
+          <div class="scenario-desc">Downstream consumer is an application expecting a JSON API. API contract design, endpoint build, integration testing.</div>
+        </label>
+
+      </div>
+
+      <div class="section-label" style="margin-top:20px;">Pre-scenario holds — delivery cannot start yet</div>
+      <div class="scenario-grid">
+
+        <label class="scenario-card pre-scenario" onclick="selectScenario('EC1')">
+          <input type="radio" name="scenario" value="EC1">
+          <span class="scenario-badge badge-hold">Hold</span>
+          <div class="scenario-num">EC1</div>
+          <div class="scenario-name">Requirements unknown hold</div>
+          <div class="scenario-desc">Client cannot define data attributes or target schema. Held pending a confirmed requirements artefact.</div>
+        </label>
+
+        <label class="scenario-card pre-scenario" onclick="selectScenario('EC2')">
+          <input type="radio" name="scenario" value="EC2">
+          <span class="scenario-badge badge-hold">Hold</span>
+          <div class="scenario-num">EC2</div>
+          <div class="scenario-name">Architecture TBD hold</div>
+          <div class="scenario-desc">Data known; downstream architecture undecided. Land-first pattern. Held pending approved ADR.</div>
+        </label>
+
+      </div>
+
+      <div class="nav-buttons">
+        <button class="btn btn-secondary" onclick="goTo(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goTo(3)" id="btn-step2-next">Next: Team questions →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: TEAM QUESTIONS -->
+    <div class="step-panel" id="step-3">
+      <div class="progress-header">
+        <div class="progress-track"><div class="progress-fill" style="width:75%"></div></div>
+        <div class="progress-label">3 / 4</div>
+      </div>
+      <div class="step-header">
+        <div class="step-tag">Step 03</div>
+        <div class="step-title">Team estimation questions</div>
+        <div class="step-desc">Answer these questions as you would in a session with each team. Your answers drive the complexity score which determines t-shirt size and estimates.</div>
+      </div>
+
+      <div class="context-card" id="scenario-context">Select a scenario in step 2 to see context here.</div>
+
+      <!-- Live score bar -->
+      <div class="score-bar-wrap">
+        <div class="score-label">Complexity</div>
+        <div class="score-track"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+        <div class="score-val" id="score-val">0</div>
+      </div>
+
+      <div class="scrollable" id="questions-container">
+        <!-- Injected by JS -->
+      </div>
+
+      <div class="nav-buttons">
+        <button class="btn btn-secondary" onclick="goTo(2)">← Back</button>
+        <button class="btn btn-calculate" onclick="calculate()">Calculate estimate →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: RESULTS -->
+    <div class="step-panel" id="step-4">
+      <div class="progress-header">
+        <div class="progress-track"><div class="progress-fill" style="width:100%"></div></div>
+        <div class="progress-label">4 / 4</div>
+      </div>
+      <div class="step-header">
+        <div class="step-tag">Step 04</div>
+        <div class="step-title">Estimation output</div>
+        <div class="step-desc">Based on your scenario selection and complexity answers. All figures are calendar days using 10-day sprints. Post-requirements workstreams run in parallel (MAX logic).</div>
+      </div>
+
+      <div id="results-output">
+        <div class="results-placeholder">
+          <div class="big-icon">⟳</div>
+          <p>Complete steps 1–3 and click "Calculate estimate" to see results.</p>
+        </div>
+      </div>
+
+      <!-- Management Summary -->
+      <div id="mgmt-summary-edh" style="display:none;margin-top:8px;"></div>
+
+      <div class="nav-buttons">
+        <button class="btn btn-secondary" onclick="goTo(3)">← Back to questions</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="btn-summary-edh" onclick="toggleSummaryEDH()" style="border-color:rgba(79,156,249,.4);color:var(--accent);">+ Management summary</button>
+          <button class="btn btn-primary" onclick="resetAll()">+ New estimate</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── STATE ──
+let currentStep = 1;
+let selectedScenario = null;
+let answers = {};
+let complexityScore = 0;
+
+// ── ESTIMATION DATA ──
+// total days, sprints, internal person-days, client person-days, avg FTE per scenario per size
+const ESTIMATES = {
+  S1: { XS:{days:35,sp:4,ipd:67.2,cpd:4.2,fte:1.92}, S:{days:42,sp:5,ipd:107.5,cpd:6.7,fte:2.56}, M:{days:46,sp:5,ipd:147.2,cpd:9.2,fte:3.2}, L:{days:60,sp:6,ipd:249.6,cpd:15.6,fte:4.16}, XL:{days:70,sp:7,ipd:358.4,cpd:22.4,fte:5.12} },
+  S2: { XS:{days:21,sp:3,ipd:25.2,cpd:2.5,fte:1.2},  S:{days:26,sp:3,ipd:66.6,cpd:4.2,fte:2.56}, M:{days:27,sp:3,ipd:86.4,cpd:5.4,fte:3.2}, L:{days:36,sp:4,ipd:149.8,cpd:9.4,fte:4.16}, XL:{days:41,sp:5,ipd:209.9,cpd:13.1,fte:5.12} },
+  S3: { XS:{days:23,sp:3,ipd:44.2,cpd:2.8,fte:1.92}, S:{days:28,sp:3,ipd:71.7,cpd:4.5,fte:2.56}, M:{days:29,sp:3,ipd:92.8,cpd:5.8,fte:3.2}, L:{days:38,sp:4,ipd:133.4,cpd:9.9,fte:3.51}, XL:{days:44,sp:5,ipd:225.3,cpd:14.1,fte:5.12} },
+  S4: { XS:{days:17,sp:2,ipd:32.6,cpd:2.0,fte:1.92}, S:{days:20,sp:2,ipd:51.2,cpd:3.2,fte:2.56}, M:{days:21,sp:3,ipd:67.2,cpd:4.2,fte:3.2}, L:{days:29,sp:3,ipd:120.6,cpd:7.5,fte:4.16}, XL:{days:32,sp:4,ipd:163.8,cpd:10.2,fte:5.12} },
+  S5: { XS:{days:34,sp:4,ipd:65.3,cpd:4.1,fte:1.92}, S:{days:40,sp:4,ipd:102.4,cpd:6.4,fte:2.56}, M:{days:43,sp:5,ipd:137.6,cpd:8.6,fte:3.2}, L:{days:55,sp:6,ipd:228.8,cpd:14.3,fte:4.16}, XL:{days:66,sp:7,ipd:337.9,cpd:21.1,fte:5.12} },
+  S6: { XS:{days:58,sp:6,ipd:111.4,cpd:7.0,fte:1.92}, S:{days:72,sp:8,ipd:184.3,cpd:11.5,fte:2.56}, M:{days:78,sp:8,ipd:249.6,cpd:15.6,fte:3.2}, L:{days:100,sp:10,ipd:416,cpd:26,fte:4.16}, XL:{days:119,sp:12,ipd:609.3,cpd:38.1,fte:5.12} },
+  G1: { XS:{days:42,sp:4,ipd:88,cpd:4.8,fte:2.1}, S:{days:52,sp:6,ipd:121,cpd:6.0,fte:2.3}, M:{days:63,sp:7,ipd:160,cpd:8.0,fte:2.5}, L:{days:85,sp:9,ipd:248,cpd:11.0,fte:2.9}, XL:{days:107,sp:11,ipd:368,cpd:14.0,fte:3.4} },
+  G2: { XS:{days:12,sp:2,ipd:22,cpd:2.0,fte:1.8}, S:{days:18,sp:2,ipd:36,cpd:2.5,fte:2.0}, M:{days:27,sp:3,ipd:58,cpd:3.5,fte:2.1}, L:{days:40,sp:4,ipd:98,cpd:5.0,fte:2.5}, XL:{days:57,sp:6,ipd:155,cpd:8.0,fte:2.7} },
+  G3: { XS:{days:16,sp:2,ipd:28,cpd:2.0,fte:1.75}, S:{days:22,sp:3,ipd:44,cpd:3.0,fte:2.0}, M:{days:31,sp:4,ipd:68,cpd:4.5,fte:2.2}, L:{days:45,sp:5,ipd:112,cpd:7.0,fte:2.5}, XL:{days:60,sp:6,ipd:168,cpd:10.0,fte:2.8} },
+  G4: { XS:{days:72,sp:8,ipd:195,cpd:15,fte:2.7}, S:{days:90,sp:9,ipd:265,cpd:20,fte:2.9}, M:{days:112,sp:12,ipd:360,cpd:28,fte:3.2}, L:{days:145,sp:15,ipd:520,cpd:40,fte:3.6}, XL:{days:188,sp:19,ipd:748,cpd:58,fte:4.0} },
+  G5: { XS:{days:19,sp:2,ipd:34,cpd:3.0,fte:1.8}, S:{days:26,sp:3,ipd:52,cpd:4.0,fte:2.0}, M:{days:33,sp:4,ipd:72,cpd:5.5,fte:2.2}, L:{days:44,sp:5,ipd:106,cpd:8.0,fte:2.4}, XL:{days:59,sp:6,ipd:155,cpd:12.0,fte:2.6} },
+  G6: { XS:{days:28,sp:3,ipd:58,cpd:5.5,fte:2.1}, S:{days:37,sp:4,ipd:84,cpd:7.5,fte:2.3}, M:{days:50,sp:5,ipd:124,cpd:11.0,fte:2.5}, L:{days:72,sp:8,ipd:196,cpd:18.0,fte:2.7}, XL:{days:97,sp:10,ipd:290,cpd:26.0,fte:3.0} },
+  G7: { XS:{days:20,sp:2,ipd:36,cpd:3.5,fte:1.8}, S:{days:28,sp:3,ipd:58,cpd:5.0,fte:2.1}, M:{days:36,sp:4,ipd:82,cpd:7.0,fte:2.3}, L:{days:50,sp:5,ipd:126,cpd:11.0,fte:2.5}, XL:{days:65,sp:7,ipd:182,cpd:15.0,fte:2.8} },
+  EC1: { simple:{days:15,sp:2,ipd:13,cpd:4.5,fte:0.9}, moderate:{days:32,sp:4,ipd:27,cpd:12.8,fte:0.85}, complex:{days:59,sp:6,ipd:52,cpd:29.5,fte:0.88} },
+  EC2: { standard:{days:16,sp:2,ipd:18.4,cpd:2.4,fte:1.15}, novel:{days:42,sp:5,ipd:71.4,cpd:0,fte:1.7}, enterprise:{days:64,sp:7,ipd:131.2,cpd:0,fte:2.05} },
+};
+
+// Team FTE ratios per scenario (how person-days split across teams)
+const TEAM_SPLIT = {
+  S1: { 'Data Engineering':0.30,'QA / Data QA':0.13,'BA / PO':0.11,'Semantic / Modeler':0.10,'DevOps':0.09,'Architect':0.08,'BI / Dashboard':0.09,'Security / IAM':0.05,'Data Steward':0.03,'Client SME':0.02 },
+  S2: { 'Data Engineering':0.30,'QA / Data QA':0.13,'BA / PO':0.12,'Semantic / Modeler':0.10,'DevOps':0.07,'Architect':0.07,'BI / Dashboard':0.08,'Security / IAM':0.05,'Data Steward':0.05,'Client SME':0.03 },
+  S3: { 'Semantic / Modeler':0.28,'Data Engineering':0.14,'BI / Dashboard':0.16,'QA / Data QA':0.13,'BA / PO':0.11,'Architect':0.06,'DevOps':0.04,'Security / IAM':0.03,'Data Steward':0.03,'Client SME':0.02 },
+  S4: { 'BI / Dashboard':0.38,'QA / Data QA':0.18,'BA / PO':0.15,'Semantic / Modeler':0.10,'Data Engineering':0.02,'Architect':0.05,'DevOps':0.02,'Security / IAM':0.04,'Data Steward':0.02,'Client SME':0.04 },
+  S5: { 'Data Engineering':0.29,'QA / Data QA':0.13,'BA / PO':0.12,'Semantic / Modeler':0.10,'DevOps':0.09,'BI / Dashboard':0.09,'Architect':0.08,'Security / IAM':0.05,'Data Steward':0.03,'Client SME':0.02 },
+  S6: { 'Data Engineering':0.29,'QA / Data QA':0.12,'BA / PO':0.11,'Semantic / Modeler':0.09,'DevOps':0.09,'BI / Dashboard':0.09,'Architect':0.08,'Security / IAM':0.06,'Data Steward':0.05,'Client SME':0.02 },
+  G1: { 'Data Engineering':0.24,'DevOps':0.22,'QA / Data QA':0.18,'BA / PO':0.10,'Architect':0.10,'Security / IAM':0.06,'Semantic / Modeler':0.04,'BI / Dashboard':0.03,'Data Steward':0.02,'Client SME':0.01 },
+  G2: { 'Data Engineering':0.30,'QA / Data QA':0.17,'BA / PO':0.12,'DevOps':0.12,'Semantic / Modeler':0.08,'Security / IAM':0.06,'BI / Dashboard':0.06,'Architect':0.05,'Data Steward':0.02,'Client SME':0.02 },
+  G3: { 'QA / Data QA':0.26,'Data Engineering':0.22,'BA / PO':0.12,'Semantic / Modeler':0.10,'BI / Dashboard':0.10,'DevOps':0.08,'Security / IAM':0.04,'Architect':0.04,'Data Steward':0.02,'Client SME':0.02 },
+  G4: { 'Data Engineering':0.22,'Semantic / Modeler':0.18,'QA / Data QA':0.17,'Architect':0.10,'BA / PO':0.09,'DevOps':0.07,'Security / IAM':0.06,'Data Steward':0.06,'BI / Dashboard':0.03,'Client SME':0.02 },
+  G5: { 'DevOps':0.20,'Security / IAM':0.17,'BA / PO':0.14,'BI / Dashboard':0.14,'QA / Data QA':0.12,'Semantic / Modeler':0.10,'Data Steward':0.08,'Architect':0.02,'Data Engineering':0.00,'Client SME':0.03 },
+  G6: { 'Data Steward':0.22,'QA / Data QA':0.22,'Data Engineering':0.18,'BA / PO':0.10,'Semantic / Modeler':0.07,'BI / Dashboard':0.07,'DevOps':0.06,'Security / IAM':0.04,'Architect':0.02,'Client SME':0.02 },
+  G7: { 'Data Engineering':0.20,'BI / Dashboard':0.18,'Semantic / Modeler':0.16,'QA / Data QA':0.15,'BA / PO':0.12,'DevOps':0.08,'Security / IAM':0.06,'Architect':0.03,'Data Steward':0.01,'Client SME':0.01 },
+  EC1:{ 'BA / PO':0.55,'Data Steward':0.10,'Architect':0.08,'Client SME':0.27,'Data Engineering':0,'QA / Data QA':0,'Semantic / Modeler':0,'DevOps':0,'Security / IAM':0,'BI / Dashboard':0 },
+  EC2:{ 'Architect':0.60,'Semantic / Modeler':0.18,'Data Steward':0.09,'BA / PO':0.07,'Data Engineering':0.04,'Client SME':0.02,'QA / Data QA':0,'DevOps':0,'Security / IAM':0,'BI / Dashboard':0 },
+};
+
+// Team colors
+const TEAM_COLORS = {
+  'Data Engineering':'#f6a623','QA / Data QA':'#a78bfa','BA / PO':'#3ecf8e',
+  'Semantic / Modeler':'#4f9cf9','DevOps':'#f26b6b','Architect':'#ec8fd0',
+  'BI / Dashboard':'#6b8cff','Security / IAM':'#ff6b6b','Data Steward':'#48d2a0',
+  'Client SME':'#8b90a0'
+};
+
+// Scenario contexts
+const SCENARIO_CONTEXT = {
+  S1: '<strong>New ingestion → Gold/Semantic:</strong> Client provides files or extracts. Pipelines land data and move to Gold and/or Semantic/Redshift. Full pipeline build from scratch. Data Engineering is the dominant team.',
+  S2: '<strong>Bronze → Silver → Gold:</strong> Data already exists in EDH Bronze. Work is transformation + layer movement only. No new source connections. Data Engineering leads, DevOps effort is minimal.',
+  S3: '<strong>Gold → Semantic (Redshift):</strong> Curated Gold data modeled into Semantic/Redshift structures. The Semantic/Modeler team dominates. Data Engineering is supporting, not leading.',
+  S4: '<strong>Redshift → Dashboards:</strong> Data already modeled. BI team leads the delivery. No DevOps or Data Engineering work expected unless a new BI tool connection is needed.',
+  S5: '<strong>Hybrid A — Light:</strong> Some data exists in EDH, some is new. Limited reconciliation. Data Engineering and Semantic both involved. Client dependency is moderate.',
+  S6: '<strong>Hybrid B — Heavy:</strong> Mix of existing EDH and new ingestion. Reconciliation, governance review, semantic alignment, and downstream impact analysis all required. Highest overall effort of the standard scenarios.',
+  G1: '<strong>Migration / cutover:</strong> Reverse-engineering existing logic from a legacy platform. DevOps and QA are front-heavy due to parallel-run validation. Architect involvement is doubled vs standard scenarios.',
+  G2: '<strong>Break-fix:</strong> Parallel after req = NO. Investigation must complete before fix scope is known. Client TAT is compressed due to urgency. QA is regression-focused.',
+  G3: '<strong>Change request:</strong> Starts with impact assessment. QA/regression often exceeds Data Engineering build time. Security = 0 for small changes. XL CR signals scope creep — flag as a new project.',
+  G4: '<strong>Multi-source consolidation:</strong> Complexity scales non-linearly. T-shirt size is driven by number of source systems (XS=3, XL=7+). Semantic/Modeler and QA are co-dominant with Data Engineering.',
+  G5: '<strong>Self-service enablement:</strong> Data Engineering = 0. DevOps and Security lead. The deliverable is access + capability, not a pipeline. UAT = onboarding. Flag if Data Eng effort appears — dataset is not ready.',
+  G6: '<strong>DQ / governance remediation:</strong> Governance-led, not Engineering-led. Data Steward FTE is highest of any scenario. QA and Data Eng are equal effort partners. Exit = governance sign-off, not client UAT.',
+  G7: '<strong>API delivery:</strong> Downstream consumer is an application expecting JSON. Semantic modelling is replaced by API contract design. BI is replaced by API endpoint development. UAT = integration testing.',
+  EC1: '<strong>Requirements unknown hold:</strong> Delivery cannot start. BA leads all hold work. Exit condition: signed data dictionary + confirmed source systems. Size is driven by number of client stakeholders.',
+  EC2: '<strong>Architecture TBD hold:</strong> Architect is primary producer (44–54% of hold effort). ARB cadence is the dominant schedule risk. Optional: Bronze ingestion can proceed in parallel as provisional landing.',
+};
+
+// QUESTIONS per scenario
+const QUESTIONS = {
+  shared: [
+    { id:'q_scope_certain', team:'BA / PO', color:'#3ecf8e', text:'How stable and complete are the requirements today?', why:'Uncertain scope adds a 20–30% effort uplift across all workstreams.', type:'choice', options:['Confirmed & stable','Partially defined','Unknown / in discovery'], weight:[0,1,3] },
+    { id:'q_clar_cycles', team:'BA / PO', color:'#3ecf8e', text:'How many clarification cycles with the client do you realistically expect?', why:'Each cycle × client TAT adds directly to calendar duration.', type:'choice', options:['1 cycle','2–3 cycles','4+ cycles'], weight:[0,1,2] },
+    { id:'q_approval_complex', team:'BA / PO', color:'#3ecf8e', text:'How complex is the approval chain — single sign-off or committee review?', why:'Committee approvals introduce calendar time that cannot be compressed.', type:'choice', options:['Single approver','2–3 approvers','Committee / ARB'], weight:[0,1,2] },
+    { id:'q_brd_done', team:'BA / PO', color:'#3ecf8e', text:'Has a formal Business Requirements Document (BRD) been started or confirmed?', why:'BRD creation and sign-off is a dedicated phase in its own right. If no BRD has been started, it usually means the project requirements have not been confirmed yet — which means the project may not be ready to estimate.', type:'yesno', weight:[0,1] },
+  ],
+  data_eng: [
+    { id:'q_tables', team:'Data Engineering', color:'#f6a623', text:'How many source tables or entities are in scope?', why:'Table count is the primary driver of Data Engineering hours. Small <6, Medium <16, Big 16+.', type:'choice', options:['Small (<6 tables)','Medium (6–15)','Big (16+)'], weight:[0,1,2] },
+    { id:'q_logic', team:'Data Engineering', color:'#f6a623', text:'What is the transformation logic complexity?', why:'This is the single highest-impact question. Low=×3, Medium=×5, High=×7 multiplier on dev hours.', type:'choice', options:['Low (simple mapping)','Medium (joins, lookups)','High (derived, conditional, aggregations)'], weight:[0,1,2] },
+    { id:'q_freshness', team:'Data Engineering', color:'#f6a623', text:'What is the required data freshness / SLA?', why:'Near-real-time or streaming is 3–10× more complex than daily batch. Changes the pipeline architecture.', type:'choice', options:['Daily batch','Hourly','Near-real-time / streaming'], weight:[0,1,3] },
+    { id:'q_domain_known', team:'Data Engineering', color:'#f6a623', text:'Does the team have prior experience with this source system?', why:'An unfamiliar source system adds a 1.3× effort multiplier — discovery time + unexpected data issues.', type:'yesno', weight:[1,0] },
+    { id:'q_existing_pipeline', team:'Data Engineering', color:'#f6a623', text:'Are there reusable pipeline components or frameworks from previous similar work?', why:'Reuse can cut Data Engineering build time by 30–50%.', type:'yesno', weight:[1,0] },
+    { id:'q_dq_issues', team:'Data Engineering', color:'#f6a623', text:'Are there known data quality issues in the source (nulls, duplicates, encoding problems)?', why:'Cleansing logic that is not scoped becomes unplanned work mid-sprint.', type:'yesno', weight:[0,1] },
+    { id:'q_incremental', team:'Data Engineering', color:'#f6a623', text:'Does the pipeline need to be incremental (delta/CDC) rather than full refresh?', why:'Incremental/CDC logic adds significant build complexity versus daily full load.', type:'yesno', weight:[0,1] },
+    { id:'q_dataops', team:'Data Engineering', color:'#f6a623', text:'Is pipeline orchestration, monitoring, and SLA alerting (DataOps) in scope?', why:'DataOps is 60% of Platform Architecture effort in the sizing model and must be tracked separately from DevOps.', type:'yesno', weight:[0,1] },
+  ],
+  architecture: [
+    { id:'q_existing_pattern', team:'Architect', color:'#ec8fd0', text:'Does this fit an existing approved EDH architecture pattern, or is a new design needed?', why:'New patterns require an Architecture Review Board (ARB) sign-off, adding 1–2 weeks minimum.', type:'choice', options:['Existing pattern','Adapting existing','New design needed'], weight:[0,1,2] },
+    { id:'q_lob', team:'Architect', color:'#ec8fd0', text:'Is a Line-of-Business (LOB) account/schema isolation approach required?', why:'LOB approach adds a 1.2× multiplier on Platform Architecture and Governance effort.', type:'yesno', weight:[0,1] },
+    { id:'q_tech_debt', team:'Architect', color:'#ec8fd0', text:'Are there known tech debt issues or design constraints in existing EDH components this touches?', why:'Hidden tech debt is the #1 cause of estimate overruns. Getting the Architect to name it early is critical.', type:'yesno', weight:[0,1] },
+    { id:'q_volume', team:'Architect', color:'#ec8fd0', text:'Are there latency or data volume SLA requirements that could change the design approach?', why:'High-volume or near-real-time requirements can push a standard pipeline to a custom architecture build.', type:'yesno', weight:[0,1] },
+  ],
+  devops: [
+    { id:'q_envs', team:'DevOps', color:'#f26b6b', text:'Are all required environments (Dev / QA / UAT / Prod) already provisioned?', why:'New environment provisioning is often on the critical path and blocks Data Engineering from starting.', type:'yesno', weight:[1,0] },
+    { id:'q_new_connections', team:'DevOps', color:'#f26b6b', text:'Are new external connections or API integrations required?', why:'New connections add a 1.5× multiplier on Platform Architecture in the cost model.', type:'yesno', weight:[0,1] },
+    { id:'q_cicd_new', team:'DevOps', color:'#f26b6b', text:'Does a new CI/CD workflow need to be created for this pipeline?', why:'New CI/CD pipelines require design, build, and testing time that is easy to underestimate.', type:'yesno', weight:[0,1] },
+    { id:'q_change_mgmt', team:'DevOps', color:'#f26b6b', text:'Is there a change management window (CAB/RFC) required before production deployment?', why:'Change management windows in regulated environments can mean waiting days or weeks for the next release slot.', type:'yesno', weight:[0,1] },
+    { id:'q_cloud_new', team:'DevOps', color:'#f26b6b', text:'Does this project require new AWS infrastructure provisioning (new S3 buckets, Glue jobs, Redshift clusters)?', why:'Greenfield AWS infra can push Platform Architecture from 16% to 35–40% of total project effort.', type:'yesno', weight:[0,2] },
+  ],
+  security: [
+    { id:'q_iam_new', team:'Security / IAM', color:'#ff6b6b', text:'Are new IAM roles or security policies required?', why:'New IAM roles require a security review before application — a sequential dependency, not parallel.', type:'yesno', weight:[0,1] },
+    { id:'q_pii', team:'Security / IAM', color:'#ff6b6b', text:'Does this dataset contain PII / PHI or sensitive data requiring masking or tokenization?', why:'PII handling adds Security and Governance effort plus testing complexity across multiple workstreams.', type:'yesno', weight:[0,1] },
+    { id:'q_external_access', team:'Security / IAM', color:'#ff6b6b', text:'Will any external parties (client, vendor) need access to EDH environments or data?', why:'External access adds a separate security review cycle on top of internal IAM work.', type:'yesno', weight:[0,1] },
+    { id:'q_pentest', team:'Security / IAM', color:'#ff6b6b', text:'Is a formal security review or penetration test required before production?', why:'Pen tests have their own lead times and cannot be rushed. Must be planned from day one.', type:'yesno', weight:[0,2] },
+  ],
+  governance: [
+    { id:'q_classified', team:'Data Steward', color:'#48d2a0', text:'Has this dataset been classified (PII, sensitive, restricted) under the data governance policy?', why:'Unclassified data triggers a governance review before ingestion can begin — a hard blocker.', type:'yesno', weight:[1,0] },
+    { id:'q_lineage', team:'Data Steward', color:'#48d2a0', text:'Does existing lineage and retention documentation cover this dataset, or does it need to be created?', why:'New catalogue entries require steward time and sometimes additional approval cycles.', type:'yesno', weight:[1,0] },
+    { id:'q_downstream_impact', team:'Data Steward', color:'#48d2a0', text:'Are there existing downstream consumers that could be affected if this dataset changes?', why:'Downstream impact analysis is a common Hybrid B cost that is invisible until Governance asks the question.', type:'yesno', weight:[0,1] },
+    { id:'q_dsa', team:'Data Steward', color:'#48d2a0', text:'Are Data Sharing Agreements (DSAs) required — is this data crossing legal entities or going to an external party?', why:'A DSA is a hard blocker. Legal sign-off can add 2–6 weeks regardless of delivery pace.', type:'yesno', weight:[0,2] },
+    { id:'q_retention', team:'Data Steward', color:'#48d2a0', text:'Are there non-standard retention or purge requirements, or legal hold scenarios?', why:'Automated purge logic and legal hold tooling are real build items that governance must sign off on.', type:'yesno', weight:[0,1] },
+    { id:'q_audit_evidence', team:'Data Steward', color:'#48d2a0', text:'Is formal audit evidence required — lineage exports, approval logs, change history records?', why:'Audit evidence in regulated environments must be built during delivery, not retrofitted post-launch.', type:'yesno', weight:[0,1] },
+  ],
+  semantic: [
+    { id:'q_model_change', team:'Semantic / Modeler', color:'#4f9cf9', text:'Does the existing Semantic/Redshift model need schema changes — new tables, modified schemas, new relationships?', why:'Schema changes carry downstream impact risk and mandatory regression checks. Additive-only is significantly simpler.', type:'yesno', weight:[0,1] },
+    { id:'q_grain_agreed', team:'Semantic / Modeler', color:'#4f9cf9', text:'Has the business agreed on the required grain for the Semantic model?', why:'Grain disputes between stakeholders are one of the top reasons Semantic modelling balloons mid-delivery.', type:'yesno', weight:[1,0] },
+    { id:'q_conformed_dims', team:'Semantic / Modeler', color:'#4f9cf9', text:'Are there conformed dimensions this dataset needs to join to that do not yet exist in the model?', why:'Building a new conformed dimension affects multiple downstream consumers — it is a significant piece of work beyond this project.', type:'yesno', weight:[0,2] },
+    { id:'q_bi_breakage', team:'Semantic / Modeler', color:'#4f9cf9', text:'Are there existing BI reports or dashboards consuming the tables you will be modifying?', why:'Undisclosed downstream BI breakage discovered in QA is the most common cause of a last-minute sprint extension.', type:'yesno', weight:[0,1] },
+  ],
+  bi: [
+    { id:'q_wireframes', team:'BI / Dashboard', color:'#6b8cff', text:'Have wireframes or mockups been agreed with the business, or are we building to a verbal brief?', why:'Verbal briefs create revision loops. Every revision loop adds build time and a client review cycle.', type:'yesno', weight:[1,0] },
+    { id:'q_metrics_defined', team:'BI / Dashboard', color:'#6b8cff', text:'Are the business definitions for all KPIs and metrics confirmed and documented (RRD)?', why:'Ambiguous metric definitions cause BI to build → get rejected → rebuild. One undefined metric can cost 2–3 days.', type:'yesno', weight:[1,0] },
+    { id:'q_bi_reports', team:'BI / Dashboard', color:'#6b8cff', text:'How many dashboards or reports are in scope?', why:'Report count directly scales BI hours in the estimation model.', type:'choice', options:['1–3 reports','4–8 reports','9+ reports'], weight:[0,1,2] },
+    { id:'q_rls', team:'BI / Dashboard', color:'#6b8cff', text:'Are there row-level security (RLS) or access restriction requirements on the dashboards?', why:'RLS in BI tools is a build task that almost no one counts until it is raised as a blocker pre-go-live.', type:'yesno', weight:[0,1] },
+    { id:'q_bi_connection', team:'BI / Dashboard', color:'#6b8cff', text:'Is the target BI tool (Power BI / Tableau / Looker) already connected to the Semantic/Redshift layer?', why:'A new tool connection needs DevOps and sometimes Security — it is not a 30-minute task.', type:'yesno', weight:[1,0] },
+  ],
+  qa: [
+    { id:'q_golden_dataset', team:'QA / Data QA', color:'#a78bfa', text:'Is there a golden dataset or source-of-truth report to reconcile against?', why:'No golden dataset means QA defines acceptance criteria from scratch — doubles testing prep time.', type:'yesno', weight:[1,0] },
+    { id:'q_backfill', team:'QA / Data QA', color:'#a78bfa', text:'Does QA need to test historical data backfill as well as current loads?', why:'Historical backfill validation adds significant volume to QA that cannot be sampled away.', type:'yesno', weight:[0,1] },
+    { id:'q_test_framework', team:'QA / Data QA', color:'#a78bfa', text:'Are existing automated test frameworks available for reuse on this project?', why:'Building a test framework from scratch is a project in itself. Reuse cuts QA time by up to 40%.', type:'yesno', weight:[1,0] },
+    { id:'q_client_cosign', team:'QA / Data QA', color:'#a78bfa', text:'Does the client need to co-sign QA results before the project moves to UAT?', why:'Client co-sign at QA stage introduces client TAT into the internal build schedule — most estimates miss this.', type:'yesno', weight:[0,1] },
+  ],
+  // scenario-specific additions
+  G4_specific: [
+    { id:'q_num_sources', team:'Data Engineering', color:'#f6a623', text:'How many source systems are being consolidated?', why:'T-shirt size in G4 is driven by source count, not project complexity. XS=3, S=3–4, M=4–5, L=5–7, XL=7+.', type:'choice', options:['3 sources (XS)','3–4 sources (S)','4–5 sources (M)','5–7 sources (L)','7+ sources (XL)'], weight:[0,0,0,0,0] },
+  ],
+  EC1_specific: [
+    { id:'q_stakeholder_count', team:'BA / PO', color:'#3ecf8e', text:'How many client stakeholders are involved in requirements definition?', why:'EC1 hold duration is driven by stakeholder count and alignment — not data complexity.', type:'choice', options:['1–2 (Simple)','3–5 (Moderate)','6+ (Complex)'], weight:[0,0,0] },
+  ],
+  EC2_specific: [
+    { id:'q_arb_pattern', team:'Architect', color:'#ec8fd0', text:'Does the required architecture fit an existing pattern, require a novel design, or have enterprise-wide impact?', why:'ARB cadence is the dominant schedule risk in EC2. Novel patterns often get rejected first submission.', type:'choice', options:['Existing pattern (Standard)','New pattern needed (Novel)','Enterprise-wide impact'], weight:[0,0,0] },
+  ],
+};
+
+// which question groups show for which scenario
+const SCENARIO_QUESTIONS = {
+  S1: ['shared','data_eng','architecture','devops','security','governance','semantic','bi','qa'],
+  S2: ['shared','data_eng','architecture','devops','security','governance','semantic','bi','qa'],
+  S3: ['shared','architecture','devops','security','governance','semantic','bi','qa'],
+  S4: ['shared','architecture','security','governance','bi','qa'],
+  S5: ['shared','data_eng','architecture','devops','security','governance','semantic','bi','qa'],
+  S6: ['shared','data_eng','architecture','devops','security','governance','semantic','bi','qa'],
+  G1: ['shared','data_eng','architecture','devops','security','governance','qa'],
+  G2: ['data_eng','devops','security','governance','semantic','bi','qa'],
+  G3: ['shared','data_eng','architecture','devops','security','governance','semantic','bi','qa'],
+  G4: ['shared','data_eng','G4_specific','architecture','devops','security','governance','semantic','bi','qa'],
+  G5: ['shared','architecture','devops','security','governance','semantic','bi'],
+  G6: ['shared','data_eng','governance','qa'],
+  G7: ['shared','data_eng','architecture','devops','security','semantic','bi','qa'],
+  EC1: ['EC1_specific','shared'],
+  EC2: ['EC2_specific','architecture','governance'],
+};
+
+const SCENARIO_NAMES = {
+  S1:'New ingestion → Gold/Semantic', S2:'Bronze → Silver → Gold', S3:'Gold → Semantic (Redshift)',
+  S4:'Redshift → Dashboards', S5:'Hybrid A (Light)', S6:'Hybrid B (Heavy)',
+  G1:'Migration / cutover', G2:'Break-fix / incident', G3:'Change request',
+  G4:'Multi-source consolidation', G5:'Self-service enablement', G6:'DQ remediation',
+  G7:'API delivery', EC1:'Req unknown hold', EC2:'Architecture TBD hold',
+};
+
+const SIZE_LABELS = { XS:'XS', S:'S', M:'M', L:'L', XL:'XL', simple:'Simple', moderate:'Moderate', complex:'Complex', standard:'Standard', novel:'Novel', enterprise:'Enterprise' };
+const SIZE_COLORS = { XS:'var(--green)', S:'var(--green)', M:'var(--amber)', L:'var(--amber)', XL:'var(--red)', simple:'var(--green)', moderate:'var(--amber)', complex:'var(--red)', standard:'var(--green)', novel:'var(--amber)', enterprise:'var(--red)' };
+
+// ── NAVIGATION ──
+function goTo(step) {
+  if (step < 1 || step > 4) return;
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-' + step).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach((n,i) => {
+    n.classList.remove('active');
+    if (i+1 < step) n.classList.add('done');
+    else n.classList.remove('done');
+  });
+  document.getElementById('nav-' + step).classList.add('active');
+  document.getElementById('nav-' + step).classList.remove('done');
+  currentStep = step;
+  if (step === 3 && selectedScenario) renderQuestions();
+  window.scrollTo(0,0);
+}
+
+function updateSidebar() {}
+
+// ── SCENARIO SELECTION ──
+function selectScenario(id) {
+  selectedScenario = id;
+  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+// ── RENDER QUESTIONS ──
+function renderQuestions() {
+  const ctx = document.getElementById('scenario-context');
+  ctx.innerHTML = SCENARIO_CONTEXT[selectedScenario] || 'No context available.';
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
+  const groups = SCENARIO_QUESTIONS[selectedScenario] || [];
+
+  // group by team
+  const teamGroups = {};
+  groups.forEach(gKey => {
+    const qs = QUESTIONS[gKey] || [];
+    qs.forEach(q => {
+      if (!teamGroups[q.team]) teamGroups[q.team] = { color: q.color, questions: [] };
+      teamGroups[q.team].questions.push(q);
+    });
+  });
+
+  Object.entries(teamGroups).forEach(([team, data]) => {
+    const sec = document.createElement('div');
+    sec.className = 'q-section open';
+    sec.innerHTML = `
+      <div class="q-section-header" onclick="toggleSection(this)">
+        <div class="q-section-left">
+          <div class="q-team-dot" style="background:${data.color}"></div>
+          <div>
+            <div class="q-section-title">${team}</div>
+            <div class="q-section-subtitle">${data.questions.length} question${data.questions.length>1?'s':''}</div>
+          </div>
+        </div>
+        <span class="q-chevron">▼</span>
+      </div>
+      <div class="q-section-body">${data.questions.map(q => renderQuestion(q)).join('')}</div>
+    `;
+    container.appendChild(sec);
+  });
+  updateScore();
+}
+
+function renderQuestion(q) {
+  if (q.type === 'yesno') {
+    return `<div class="q-item">
+      <div class="q-text">${q.text}</div>
+      <div class="q-why"><em>Why this matters:</em> ${q.why}</div>
+      <div class="q-options">
+        <button class="q-btn" onclick="answer('${q.id}',0,this,'yes')">Yes</button>
+        <button class="q-btn" onclick="answer('${q.id}',1,this,'no')">No</button>
+      </div>
+    </div>`;
+  }
+  if (q.type === 'choice') {
+    const opts = q.options.map((o,i) => `<button class="q-btn" onclick="answer('${q.id}',${i},this,'val')">${o}</button>`).join('');
+    return `<div class="q-item">
+      <div class="q-text">${q.text}</div>
+      <div class="q-why"><em>Why this matters:</em> ${q.why}</div>
+      <div class="q-options">${opts}</div>
+    </div>`;
+  }
+  return '';
+}
+
+function toggleSection(header) {
+  const sec = header.closest('.q-section');
+  sec.classList.toggle('open');
+}
+
+// ── ANSWER HANDLING ──
+function answer(id, weightIdx, btn, type) {
+  // Clear siblings
+  btn.closest('.q-options').querySelectorAll('.q-btn').forEach(b => {
+    b.classList.remove('selected-yes','selected-no','selected-high','selected-medium','selected-low','selected-val');
+  });
+  // Find question
+  let q = null;
+  Object.values(QUESTIONS).flat().find ? null : null;
+  for (const grp of Object.values(QUESTIONS)) {
+    const found = grp.find ? grp.find(x => x.id === id) : null;
+    if (found) { q = found; break; }
+  }
+
+  if (!q) { answers[id] = 0; } else {
+    answers[id] = q.weight[weightIdx] || 0;
+  }
+
+  // Style button
+  if (type === 'yes') btn.classList.add('selected-yes');
+  else if (type === 'no') btn.classList.add('selected-no');
+  else {
+    const val = q ? q.weight[weightIdx] : 0;
+    if (val >= 2) btn.classList.add('selected-high');
+    else if (val === 1) btn.classList.add('selected-medium');
+    else btn.classList.add('selected-low');
+  }
+  updateScore();
+}
+
+function updateScore() {
+  const score = Object.values(answers).reduce((a,b) => a+b, 0);
+  complexityScore = score;
+  const max = 30;
+  document.getElementById('score-fill').style.width = Math.min(score/max*100, 100) + '%';
+  document.getElementById('score-val').textContent = score;
+  // colour shift
+  const fill = document.getElementById('score-fill');
+  if (score <= 7) fill.style.background = 'var(--green)';
+  else if (score <= 14) fill.style.background = 'var(--amber)';
+  else fill.style.background = 'var(--red)';
+}
+
+// ── SIZE CALCULATION ──
+function getSize(scenario, score) {
+  if (scenario === 'EC1') {
+    const v = answers['q_stakeholder_count'];
+    if (v === undefined || v === 0) return 'simple';
+    if (v === 1) return 'moderate'; // but weight 0 — use btn index directly
+    return 'complex';
+  }
+  if (scenario === 'EC2') {
+    const v = answers['q_arb_pattern'];
+    if (v === undefined || v === 0) return 'standard';
+    if (v === 1) return 'novel';
+    return 'enterprise';
+  }
+  // G4: size driven by source count, not score
+  if (scenario === 'G4') {
+    const idx = Object.keys(answers).includes('q_num_sources_idx') ? answers['q_num_sources_idx'] : null;
+    // fallback to score
+  }
+  if (score <= 4) return 'XS';
+  if (score <= 8) return 'S';
+  if (score <= 13) return 'M';
+  if (score <= 19) return 'L';
+  return 'XL';
+}
+
+// Special answer tracking for choice indices
+const answerIndices = {};
+const origAnswer = answer;
+// Patch to track choice index for EC1/EC2/G4
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.q-btn');
+  if (!btn) return;
+  const opts = btn.closest('.q-options');
+  if (!opts) return;
+  const btns = Array.from(opts.querySelectorAll('.q-btn'));
+  const idx = btns.indexOf(btn);
+  // find q-item
+  const qItem = btn.closest('.q-item');
+  if (!qItem) return;
+  // find question id from onclick
+  const onclick = btn.getAttribute('onclick') || '';
+  const match = onclick.match(/answer\('([^']+)'/);
+  if (match) answerIndices[match[1]] = idx;
+});
+
+// ── CALCULATE ──
+function calculate() {
+  const scenario = selectedScenario;
+  if (!scenario) { goTo(2); return; }
+
+  let size = getSize(scenario, complexityScore);
+
+  // EC1/EC2 size from choice index
+  if (scenario === 'EC1') {
+    const idx = answerIndices['q_stakeholder_count'];
+    if (idx === 0) size = 'simple';
+    else if (idx === 1) size = 'moderate';
+    else size = 'complex';
+  }
+  if (scenario === 'EC2') {
+    const idx = answerIndices['q_arb_pattern'];
+    if (idx === 0) size = 'standard';
+    else if (idx === 1) size = 'novel';
+    else size = 'enterprise';
+  }
+  if (scenario === 'G4') {
+    const idx = answerIndices['q_num_sources'];
+    if (idx !== undefined) {
+      const map = ['XS','S','M','L','XL'];
+      size = map[idx] || size;
+    }
+  }
+
+  const data = ESTIMATES[scenario] ? ESTIMATES[scenario][size] : null;
+  if (!data) {
+    document.getElementById('results-output').innerHTML = `<div class="results-placeholder"><p>No estimate data for this scenario/size combination. Please review your inputs.</p></div>`;
+    goTo(4);
+    return;
+  }
+
+  const teamSplit = TEAM_SPLIT[scenario] || {};
+  const projName = document.getElementById('proj-name').value || 'Unnamed project';
+  const projNum  = document.getElementById('proj-num').value || '—';
+  const sizeColor = SIZE_COLORS[size] || 'var(--accent)';
+
+  // team breakdown
+  const teamRows = Object.entries(teamSplit)
+    .filter(([,pct]) => pct > 0)
+    .sort(([,a],[,b]) => b - a)
+    .map(([team, pct]) => {
+      const teamDays = (data.ipd * pct).toFixed(1);
+      const maxPct = Object.values(teamSplit).reduce((a,b) => Math.max(a,b), 0);
+      const barW = Math.round(pct / maxPct * 100);
+      const color = TEAM_COLORS[team] || '#8b90a0';
+      return `<div class="team-bar-row">
+        <div class="team-dot" style="background:${color}"></div>
+        <div class="team-name">${team}</div>
+        <div class="team-track"><div class="team-fill" style="width:${barW}%;background:${color}"></div></div>
+        <div class="team-days">${teamDays} pd</div>
+        <div class="team-pct">${(pct*100).toFixed(0)}%</div>
+      </div>`;
+    }).join('');
+
+  const html = `
+    <div class="results-panel">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:3px;">${projNum}</div>
+          <div style="font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--text);">${projName}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${SCENARIO_NAMES[scenario]}</div>
+        </div>
+        <div class="result-size-badge" style="color:${sizeColor};border-color:${sizeColor};background:${sizeColor}18;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${sizeColor};display:inline-block;"></span>
+          ${SIZE_LABELS[size]} · Score: ${complexityScore}
+        </div>
+      </div>
+
+      <div class="result-headline">
+        <div class="result-days">${data.days}</div>
+        <div class="result-days-label">calendar<br>days</div>
+        <div style="width:1px;height:44px;background:var(--border);margin:0 8px;"></div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:28px;font-weight:600;color:var(--text)">${data.sp}</div>
+          <div style="font-size:12px;color:var(--text2);">sprints<br>(10d each)</div>
+        </div>
+        <div style="width:1px;height:44px;background:var(--border);margin:0 8px;"></div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:28px;font-weight:600;color:var(--text)">${data.fte}</div>
+          <div style="font-size:12px;color:var(--text2);">avg internal<br>FTE (parallel)</div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">Internal person-days</div>
+          <div class="stat-card-val">${data.ipd}</div>
+          <div class="stat-card-sub">Effort across all teams</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Client person-days</div>
+          <div class="stat-card-val">${data.cpd}</div>
+          <div class="stat-card-sub">Client-side commitment</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Complexity score</div>
+          <div class="stat-card-val" style="color:${sizeColor}">${complexityScore}</div>
+          <div class="stat-card-sub">From ${Object.keys(answers).length} answered questions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">T-shirt size</div>
+          <div class="stat-card-val" style="color:${sizeColor}">${SIZE_LABELS[size]}</div>
+          <div class="stat-card-sub">${scenario} scenario</div>
+        </div>
+      </div>
+
+      <div class="section-label">Team effort breakdown (person-days)</div>
+      <div class="team-bars">${teamRows}</div>
+
+      <div style="margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius-sm);font-size:11px;color:var(--text3);line-height:1.6;">
+        <strong style="color:var(--text2);">How to read this:</strong> Person-days are the total effort from each team, not parallel time. Calendar duration (${data.days} days) uses MAX() for post-requirements workstreams — teams work in parallel after the design and intake phases complete. Phase 2 of this calculator will convert person-days to cost using the rate card.
+      </div>
+    </div>
+
+    ${(scenario === 'EC1' || scenario === 'EC2') ? `
+    <div style="background:var(--amber-bg);border:1px solid rgba(246,166,35,0.25);border-radius:var(--radius);padding:14px 18px;font-size:12px;color:var(--amber);line-height:1.6;">
+      <strong>Hold scenario:</strong> This estimate covers the <em>hold duration</em> only — the time to resolve the blocking condition. Once the hold exits (confirmed requirements / approved ADR), re-run the estimator with the appropriate delivery scenario to get the full project estimate. The hold and the delivery are tracked separately.
+    </div>` : ''}
+  `;
+
+  document.getElementById('results-output').innerHTML = html;
+  goTo(4);
+}
+
+// ── RESET ──
+function resetAll() {
+  selectedScenario = null;
+  answers = {};
+  complexityScore = 0;
+  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('input[type="text"], input[type="email"], input[type="date"], textarea').forEach(i => i.value='');
+  document.getElementById('results-output').innerHTML = `<div class="results-placeholder"><div class="big-icon">⟳</div><p>Complete steps 1–3 and click "Calculate estimate" to see results.</p></div>`;
+  document.getElementById('questions-container').innerHTML = '';
+  goTo(1);
+}
+
+
+// ── MANAGEMENT SUMMARY (DELIVERY ESTIMATOR) ──────────────────────────────────
+let summaryEDHVisible = false;
+
+function toggleSummaryEDH() {
+  summaryEDHVisible = !summaryEDHVisible;
+  const el = document.getElementById('mgmt-summary-edh');
+  const btn = document.getElementById('btn-summary-edh');
+  if (!summaryEDHVisible) {
+    el.style.display = 'none';
+    btn.textContent = '+ Management summary';
+    return;
+  }
+  btn.textContent = '− Hide summary';
+  el.style.display = 'block';
+  renderSummaryEDH();
+}
+
+function renderSummaryEDH() {
+  const scenario = selectedScenario;
+  if (!scenario) return;
+
+  const size = (() => {
+    let s = getSize(scenario, complexityScore);
+    if (scenario === 'EC1') {
+      const idx = answerIndices['q_stakeholder_count'];
+      if (idx === 0) s = 'simple'; else if (idx === 1) s = 'moderate'; else s = 'complex';
+    }
+    if (scenario === 'EC2') {
+      const idx = answerIndices['q_arb_pattern'];
+      if (idx === 0) s = 'standard'; else if (idx === 1) s = 'novel'; else s = 'enterprise';
+    }
+    if (scenario === 'G4') {
+      const idx = answerIndices['q_num_sources'];
+      if (idx !== undefined) { const map=['XS','S','M','L','XL']; s = map[idx] || s; }
+    }
+    return s;
+  })();
+
+  const data = ESTIMATES[scenario] ? ESTIMATES[scenario][size] : null;
+  if (!data) return;
+
+  const isHold = scenario === 'EC1' || scenario === 'EC2';
+  const projName = document.getElementById('proj-name').value || 'Unnamed project';
+  const projNum  = document.getElementById('proj-num').value || '—';
+  const projDesc = document.getElementById('proj-desc')?.value || '';
+  const reqName  = document.getElementById('req-name')?.value || '';
+  const reqEmail = document.getElementById('req-email')?.value || '';
+  const reqTeam  = document.getElementById('req-team')?.value || '';
+  const sponsor  = document.getElementById('client')?.value || '';
+  const dateStr  = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const sizeColor = SIZE_COLORS[size] || 'var(--accent)';
+
+  // Build risks from high-weight Yes answers
+  const riskMap = {
+    'q_freshness': 'Near-real-time or streaming SLA required — pipeline architecture is significantly more complex than batch.',
+    'q_dataops': 'DataOps (pipeline monitoring, SLA alerting, orchestration) is in scope — adds dedicated platform effort.',
+    'q_new_connections': 'New external connections required — adds a 1.5× multiplier to Platform Architecture effort.',
+    'q_cloud_new': 'New AWS infrastructure provisioning required — Platform Architecture effort may be 2–3× higher than baseline.',
+    'q_pii': 'Dataset contains PII or sensitive data — Security review and masking/tokenisation work required.',
+    'q_dsa': 'Data Sharing Agreement required — legal sign-off can add 2–6 weeks independently of delivery pace.',
+    'q_pentest': 'Formal security review or penetration test required — must be planned from day one.',
+    'q_conformed_dims': 'New conformed dimensions needed — affects all downstream consumers, not just this project.',
+    'q_logic': complexityScore >= 8 ? 'High transformation complexity detected — Data Engineering effort multiplied significantly.' : null,
+    'q_new_connections': 'New external connections required — DevOps and Security dependency before build can start.',
+    'q_change_mgmt': 'Change management window (CAB/RFC) required — production deployment may be delayed waiting for a release slot.',
+  };
+
+  // Collect top risks from Yes answers with weight >= 1
+  const risks = [];
+  Object.entries(answers).forEach(([qid, w]) => {
+    if (w >= 1 && riskMap[qid] && riskMap[qid]) {
+      if (!risks.find(r => r === riskMap[qid])) risks.push(riskMap[qid]);
+    }
+  });
+  const top3 = risks.slice(0,3);
+
+  const SS = {
+    XS:{bg:'#e8f5ee',col:'#1a5c3a',br:'#b0d8c0'},
+    S:{bg:'#e8f5ee',col:'#1a5c3a',br:'#b0d8c0'},
+    M:{bg:'#fef3e0',col:'#7a4a00',br:'#f0d090'},
+    L:{bg:'#fef3e0',col:'#7a4a00',br:'#f0d090'},
+    XL:{bg:'#faeaea',col:'#5c1a1a',br:'#f0b0b0'},
+    simple:{bg:'#e8f5ee',col:'#1a5c3a',br:'#b0d8c0'},
+    moderate:{bg:'#fef3e0',col:'#7a4a00',br:'#f0d090'},
+    complex:{bg:'#faeaea',col:'#5c1a1a',br:'#f0b0b0'},
+    standard:{bg:'#e8f5ee',col:'#1a5c3a',br:'#b0d8c0'},
+    novel:{bg:'#fef3e0',col:'#7a4a00',br:'#f0d090'},
+    enterprise:{bg:'#faeaea',col:'#5c1a1a',br:'#f0b0b0'},
+  };
+  const ss = SS[size] || SS['S'];
+  const sLabel = SIZE_LABELS[size] || size;
+  const confCls = isHold ? 'hold' : 'validated';
+  const confLabel = isHold ? 'Hold — delivery cannot start yet' : 'Validated estimate';
+  const confDesc = isHold
+    ? 'A blocking condition must be resolved before delivery begins. The figure shown is the estimated hold duration only.'
+    : 'This estimate has been reviewed with the delivery teams and is suitable for project planning and commitment.';
+
+  // Client commitments from question answers
+  const qaGolden = answers['q_golden_dataset'] === 0 ? true : false;
+  const qaBrf    = answers['q_brd_done'] === 1 ? true : false; // No = BRD not done
+  const qaWire   = answers['q_wireframes'] === 1 ? true : false;
+  const qaMetric = answers['q_metrics_defined'] === 1 ? true : false;
+  const qaClass  = answers['q_classified'] === 1 ? true : false;
+  const qaEnvs   = answers['q_envs'] === 1 ? true : false;
+
+  const clientItems = [];
+  if (qaBrf)    clientItems.push({lbl:'Requirements document', val:'BRD to be completed and signed off before build can start'});
+  if (qaWire)   clientItems.push({lbl:'Dashboard wireframes', val:'Agreed wireframes or mockups required before BI build'});
+  if (qaMetric) clientItems.push({lbl:'Metric definitions', val:'Business definitions for all KPIs must be confirmed and documented'});
+  if (qaClass)  clientItems.push({lbl:'Data classification', val:'Dataset must be classified under governance policy before ingestion'});
+  if (qaEnvs)   clientItems.push({lbl:'Environment access', val:'Dev / QA / UAT environments must be provisioned before work begins'});
+  if (!qaGolden) clientItems.push({lbl:'UAT reference data', val:'Golden dataset or source-of-truth report required for QA validation'});
+  if (clientItems.length === 0) clientItems.push({lbl:'Client confirmation', val:'Availability for UAT and timely response to clarification requests'});
+
+  const clientHtml = clientItems.map(i =>
+    `<div class="mgmt-client-row"><div class="mgmt-client-lbl">${i.lbl}</div><div class="mgmt-client-val">${i.val}</div></div>`
+  ).join('');
+
+  const risksHtml = top3.length
+    ? top3.map((r,i) => `<div class="mgmt-risk-item r${i+1}"><div class="mgmt-risk-num">${i+1}</div>${r}</div>`).join('')
+    : '<div style="font-size:12px;color:#8a8a8a;font-style:italic;padding:4px 0;">No risks flagged from question answers.</div>';
+
+  const holdNote = isHold ? `
+    <div style="background:#fef3e0;border:1px solid #f0d090;border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#7a4a00;line-height:1.6;">
+      <strong style="color:#5a3000;font-weight:500;">Hold scenario:</strong> This estimate covers the hold duration only — the time to resolve the blocking condition.
+      Once resolved (${scenario === 'EC1' ? 'confirmed requirements document' : 'approved Architecture Decision Record'}), run a new estimate using the appropriate delivery scenario to get the full project timeline.
+    </div>` : '';
+
+  document.getElementById('mgmt-summary-edh').innerHTML = `
+  <div class="mgmt-card">
+    <div class="mgmt-header">
+      <div class="mgmt-eyebrow">AWS / EDH · Validated estimate · ${dateStr}</div>
+      <div class="mgmt-proj-name">${projName}</div>
+      <div class="mgmt-proj-meta">
+        ${projNum !== '—' ? '<span><strong>Ref:</strong> ' + projNum + '</span>' : ''}
+        ${sponsor ? '<span><strong>Sponsor:</strong> ' + sponsor + '</span>' : ''}
+        ${reqName ? '<span><strong>Requester:</strong> ' + reqName + (reqTeam ? ' · ' + reqTeam : '') + '</span>' : ''}
+        <span><strong>Type:</strong> ${SCENARIO_NAMES[scenario]}</span>
+      </div>
+    </div>
+
+    <div class="mgmt-conf">
+      <div class="mgmt-conf-dot ${confCls}"></div>
+      <div class="mgmt-conf-label ${confCls}">${confLabel}</div>
+      <div class="mgmt-conf-desc">${confDesc}</div>
+    </div>
+
+    <div class="mgmt-body">
+      ${projDesc ? '<div class="mgmt-desc">' + projDesc + '</div>' : ''}
+      ${holdNote}
+
+      <div class="mgmt-hl-row">
+        <div>
+          <div style="font-size:10px;color:#666;font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;">${isHold ? 'Estimated hold duration' : 'Estimated delivery duration'}</div>
+          <div class="mgmt-days-big">${data.days}</div>
+          <div class="mgmt-days-lbl">calendar days${isHold ? ' until unblock condition is met' : ' from kick-off to go-live'}</div>
+        </div>
+        <div class="mgmt-stats-mini">
+          <div>
+            <div class="mgmt-stat-mini-val">${data.sp}</div>
+            <div class="mgmt-stat-mini-lbl">sprints<br>10d each</div>
+          </div>
+          <div class="mgmt-vdiv"></div>
+          <div>
+            <div class="mgmt-stat-mini-val">${data.fte}</div>
+            <div class="mgmt-stat-mini-lbl">avg team<br>FTE</div>
+          </div>
+          <div class="mgmt-vdiv"></div>
+          <div class="mgmt-size-chip" style="background:${ss.bg};border:1px solid ${ss.br};">
+            <div class="mgmt-size-chip-val" style="color:${ss.col};">${sLabel}</div>
+            <div class="mgmt-size-chip-lbl" style="color:${ss.col};">size</div>
+          </div>
+        </div>
+      </div>
+
+      ${!isHold ? `
+      <div class="mgmt-section-lbl" style="margin-bottom:8px;">Resource commitment</div>
+      <div class="mgmt-effort-row">
+        <div class="mgmt-effort-cell">
+          <div class="mgmt-effort-lbl">Internal effort</div>
+          <div class="mgmt-effort-val">${data.ipd}</div>
+          <div class="mgmt-effort-sub">person-days, all teams</div>
+        </div>
+        <div class="mgmt-effort-cell">
+          <div class="mgmt-effort-lbl">Client commitment</div>
+          <div class="mgmt-effort-val">${data.cpd}</div>
+          <div class="mgmt-effort-sub">person-days required</div>
+        </div>
+        <div class="mgmt-effort-cell">
+          <div class="mgmt-effort-lbl">Team size (avg)</div>
+          <div class="mgmt-effort-val">${data.fte}</div>
+          <div class="mgmt-effort-sub">FTE in parallel</div>
+        </div>
+      </div>` : ''}
+
+      <div class="mgmt-section-lbl" style="margin-bottom:8px;">What we need from the client</div>
+      <div class="mgmt-client-block" style="margin-bottom:18px;">
+        <div class="mgmt-client-title">Client commitments required to proceed</div>
+        ${clientHtml}
+      </div>
+
+      <div class="mgmt-section-lbl" style="margin-bottom:8px;">Key risks</div>
+      <div class="mgmt-risk-list" style="margin-bottom:18px;">${risksHtml}</div>
+
+      <div class="mgmt-next">
+        <div class="mgmt-next-arrow">→</div>
+        <div>
+          <div class="mgmt-next-lbl">Next step</div>
+          <div class="mgmt-next-text">${isHold
+            ? '<strong>Resolve the blocking condition</strong> and communicate the unblock criteria to the client. Re-run the Delivery Estimator once the hold exits.'
+            : '<strong>Confirm resource availability</strong> for the first sprint, agree the kick-off date with the client, and log this estimate in the project register.'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mgmt-print-row">
+      <button class="mgmt-print-btn" id="edh-print-btn" onclick="printSummaryEDH()">Print / Save as PDF</button>
+    </div>
+    <div class="mgmt-footer">
+      <span>AWS / EDH Delivery Estimator · ${projNum} · ${dateStr}</span>
+      <span>${confLabel} · ${SCENARIO_NAMES[scenario]} · ${sLabel}</span>
+    </div>
+  </div>`;
+}
+
+
+function printSummaryEDH() {
+  const required = [
+    { id: 'proj-name',  label: 'Project name' },
+    { id: 'proj-num',   label: 'Project number' },
+    { id: 'proj-desc',  label: 'Project description' },
+    { id: 'proj-date',  label: 'Intake date' },
+    { id: 'req-name',   label: 'Requester name' },
+  ];
+  const missing = required.filter(f => {
+    const el = document.getElementById(f.id);
+    return !el || !el.value.trim();
+  });
+  if (!selectedScenario) missing.unshift({ label: 'Scenario selection' });
+  if (missing.length > 0) {
+    alert('Please complete the following required fields before printing:\n\n' +
+      missing.map(f => '  · ' + f.label).join('\n') +
+      '\n\nReturn to Step 1 to complete these fields.');
+    return;
+  }
+  window.print();
+}
+
+// ── INIT ──
+document.getElementById('proj-date').valueAsDate = new Date();
+</script>
+
+<!-- README MODAL -->
+<div class="readme-overlay" id="readme-overlay" onclick="if(event.target===this)closeReadme()">
+  <div class="readme-modal">
+    <div class="readme-topbar">
+      <div>
+        <div class="readme-topbar-title">EDH Delivery Estimator — Instructions</div>
+        <div class="readme-topbar-sub">How to use this tool</div>
+      </div>
+      <div class="readme-close" onclick="closeReadme()">✕</div>
+    </div>
+    <div class="readme-tabs">
+      <div class="readme-tab active" onclick="showRTab('what',this)">What this is</div>
+      <div class="readme-tab" onclick="showRTab('how',this)">How to use it</div>
+      <div class="readme-tab" onclick="showRTab('scenarios',this)">Scenarios</div>
+      <div class="readme-tab" onclick="showRTab('outputs',this)">Understanding outputs</div>
+      <div class="readme-tab" onclick="showRTab('glossary',this)">Glossary</div>
+    </div>
+    <div class="readme-body">
+
+      <!-- WHAT THIS IS -->
+      <div class="readme-rpanel active" id="rpanel-what">
+        <div class="rm-section">
+          <div class="rm-section-title">What this tool is</div>
+          <div class="rm-prose">The EDH Delivery Estimator is a <strong>facilitated estimation session tool</strong>. It is designed to be used by a PM or BA while running a live session with the delivery teams — Data Engineering, DevOps, Security, Governance, Semantic Modeler, BI, and QA.</div>
+          <div class="rm-prose">You select the delivery scenario, answer team questions, and the tool scores the complexity and produces a validated estimate — total calendar days, sprint count, team effort, and FTE.</div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">When to use it</div>
+          <div class="rm-prose">Use this calculator when you are running a formal estimation session with the delivery teams present. It is most valuable when: the project is Medium size or larger; the project type is a migration, incident, change request, API delivery, or another non-standard scenario; or you need to surface specific team risks and dependencies — not just a day count.</div>
+          <div class="rm-callout warn"><strong>This tool is not a solo exercise.</strong> The questions are designed to be asked to each team in a session. Filling in the answers without the relevant team present will produce an unreliable estimate.</div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">How the scoring works</div>
+          <div class="rm-prose">Each question carries a complexity weight. Yes answers add to the total complexity score. The score maps to a t-shirt size, and the size combined with your scenario produces the estimate from the pre-calibrated engine.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            <span class="rm-pill g">0–4 = XS</span>
+            <span class="rm-pill g">5–8 = S</span>
+            <span class="rm-pill a">9–13 = M</span>
+            <span class="rm-pill a">14–19 = L</span>
+            <span class="rm-pill r">20+ = XL</span>
+          </div>
+          <div class="rm-callout info"><strong>MAX() logic:</strong> After the requirements phase, all delivery teams work in parallel. Calendar duration equals the longest workstream — not the sum of all workstreams. This is why a project with six active teams does not take six times as long.</div>
+        </div>
+      </div>
+
+      <!-- HOW TO USE -->
+      <div class="readme-rpanel" id="rpanel-how">
+        <div class="rm-section">
+          <div class="rm-section-title">Step-by-step guide</div>
+          <div class="rm-steps">
+            <div class="rm-step"><div class="rm-step-num">1</div><div class="rm-step-body"><strong>Project intake (before the session)</strong>Fill in the project number, name, intake date, and requester. Do this before the teams join — it is housekeeping, not estimation.</div></div>
+            <div class="rm-step"><div class="rm-step-num">2</div><div class="rm-step-body"><strong>Select the scenario (before the session)</strong>Choose the scenario that best describes this project. Read the description carefully. If unsure between two, pick the closest and note the caveat. The scenario controls which team questions are shown.</div></div>
+            <div class="rm-step"><div class="rm-step-num">3</div><div class="rm-step-body"><strong>Session opener — full room</strong>Before team questions, ask everyone: (1) Does the scenario look right? (2) Has anyone done something similar before? (3) What is the single biggest unknown that could change the estimate? These catch misalignments before scoring begins.</div></div>
+            <div class="rm-step"><div class="rm-step-num">4</div><div class="rm-step-body"><strong>Team questions — one team at a time</strong>Work through each team section. Click the team header to expand. Ask each question to the relevant team and record their answer. The italicised explanation under each question gives context for why you are asking — read it aloud if the team asks why.</div></div>
+            <div class="rm-step"><div class="rm-step-num">5</div><div class="rm-step-body"><strong>Watch the live complexity score</strong>The bar at the top of Step 3 updates as you record answers. If the size feels wrong based on the room's conversation, check which Yes answers are driving the score — those are the complexity signals.</div></div>
+            <div class="rm-step"><div class="rm-step-num">6</div><div class="rm-step-body"><strong>Session close — full room</strong>After all sections: (1) Does anything change now that everyone has heard all workstreams? (2) What is your confidence level? (3) Does any team need something from another team before they can start? These surface revisions that only emerge when teams hear each other.</div></div>
+            <div class="rm-step"><div class="rm-step-num">7</div><div class="rm-step-body"><strong>Calculate the estimate</strong>Click Calculate. Review the output with the teams present before closing. Give teams a chance to flag anything that looks wrong before the number leaves the room.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Facilitator notes</div>
+          <div class="rm-callout warn"><strong>Do not ask for a day count first.</strong> Ask the questions, let complexity surface, then ask for a number. Teams that score complexity first give more accurate estimates than teams who anchor on a number and work backwards.</div>
+          <div class="rm-callout info" style="margin-top:8px;"><strong>Low confidence = add a buffer or a spike sprint.</strong> If any team says their confidence is low, add 20–30% to that workstream or plan a spike sprint before committing the estimate.</div>
+        </div>
+      </div>
+
+      <!-- SCENARIOS -->
+      <div class="readme-rpanel" id="rpanel-scenarios">
+        <div class="rm-section">
+          <div class="rm-section-title">Standard delivery scenarios (S1–S6)</div>
+          <div class="rm-prose">Use these for forward-build delivery where you know the source, target, and scope. The scenario is determined by where the data starts and where it needs to go.</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">S1 — New ingestion → Gold/Semantic</div><div class="rm-def-body">Files or APIs received from client. Ingestion pipelines land data and move it to Gold and/or Semantic (Redshift).</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S2 — Bronze → Silver → Gold</div><div class="rm-def-body">Data already in EDH Bronze. Work is transformation and layer movement only — no new source connections.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S3 — Gold → Semantic</div><div class="rm-def-body">Curated Gold data modelled into agreed Semantic / Redshift structures (grain, joins, conformed dimensions).</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S4 — Redshift → Dashboards</div><div class="rm-def-body">Data already modelled. Focus is BI dataset and dashboard build plus validation — no pipeline work.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S5 — Hybrid A (Light)</div><div class="rm-def-body">Some EDH data exists; minimal reconciliation; limited ingestion and transformations.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S6 — Hybrid B (Heavy)</div><div class="rm-def-body">New and existing EDH data. Reconciliation, governance review, semantic alignment, downstream impact analysis all required.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Additional delivery scenarios (G1–G7)</div>
+          <div class="rm-prose">Use these when the project does not fit the standard forward-build pattern.</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">G1 — Migration / cutover</div><div class="rm-def-body">Moving an existing data product from a legacy platform into EDH. Requires parallel-run validation, cutover, and rollback planning.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">G2 — Break-fix / incident</div><div class="rm-def-body">Something in production is broken. Investigate → root-cause → fix → validate. Scope is unknown at the start.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">G3 — Change request</div><div class="rm-def-body">Client requests a change to something already in production. Starts with impact assessment, then regression testing.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">G4 — Multi-source consolidation</div><div class="rm-def-body">Three or more source systems consolidated into a single data product. Size is driven by source count, not complexity score.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">G5 — Self-service enablement</div><div class="rm-def-body">Provisioning existing EDH data so a business team can access it themselves. No pipeline build — access and capability only.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">G6 — DQ / governance remediation</div><div class="rm-def-body">Fixing known data quality issues, implementing missing DQ rules, or carrying out a commissioned data audit.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">G7 — API delivery</div><div class="rm-def-body">The downstream consumer is an application expecting a JSON API. Replaces semantic modelling with API contract design and BI build with endpoint development.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Pre-delivery holds (EC1, EC2)</div>
+          <div class="rm-prose">Use these when delivery cannot start yet. They produce a <strong>hold duration estimate</strong> — not a delivery estimate. Once the hold resolves, run the estimator again with the appropriate delivery scenario.</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">EC1 — Requirements unknown</div><div class="rm-def-body">The client cannot confirm what data attributes or schema they need. Held until a signed requirements document is in place.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">EC2 — Architecture undecided</div><div class="rm-def-body">The data is known but the downstream architecture is not yet agreed. Held until an Architecture Decision Record (ADR) is approved.</div></div>
+          </div>
+          <div class="rm-callout warn"><strong>EC1 and EC2 estimate the hold — not the delivery.</strong> When the hold resolves, open a new estimate using the appropriate delivery scenario to get the actual project timeline.</div>
+        </div>
+      </div>
+
+      <!-- OUTPUTS -->
+      <div class="readme-rpanel" id="rpanel-outputs">
+        <div class="rm-section">
+          <div class="rm-section-title">Understanding the results</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">Total calendar days</div><div class="rm-def-body">Days from project kick-off to go-live. Includes waiting time (client responses, approval cycles) — not just build time.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Sprints</div><div class="rm-def-body">Calendar days ÷ 10, rounded up. One sprint = 10 calendar days (2 working weeks).</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Internal person-days</div><div class="rm-def-body">Total effort from all internal delivery teams combined. Used for capacity planning. If three teams each spend 10 days, that is 30 person-days — regardless of calendar duration.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Client person-days</div><div class="rm-def-body">Effort required from the client side — clarifications, UAT, data provision, approvals. This is the cost of the project to the client's own team.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Avg internal FTE</div><div class="rm-def-body">Internal person-days ÷ total calendar days. How many delivery team members are working in parallel on average. Use this for sprint staffing decisions.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Team effort bar chart</div><div class="rm-def-body">Shows how person-days split across delivery teams for this scenario at this size. The percentages reflect the scenario's team composition — a dashboard-only project allocates more to BI; a migration allocates more to DevOps and QA.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY -->
+      <div class="readme-rpanel" id="rpanel-glossary">
+        <div class="rm-section">
+          <div class="rm-section-title">EDH data layers</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">Bronze</div><div class="rm-def-body">Raw data landing zone — ingested as received, no transformation.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Silver</div><div class="rm-def-body">Cleansed and standardised data — data types normalised, nulls handled, basic rules applied.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Gold</div><div class="rm-def-body">Business-ready curated data — joins, aggregations, derived fields, full business logic applied.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Semantic / Redshift</div><div class="rm-def-body">Modelled structures in Amazon Redshift designed for analytics and reporting. What BI tools query directly.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Conformed dimension</div><div class="rm-def-body">A shared dimension table (e.g. Date, Employee) used across multiple data products. Changes affect all consumers — not just the current project.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Estimation terms</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">T-shirt size</div><div class="rm-def-body">Relative size label (XS to XL) assigned from the complexity score. Maps to pre-calibrated workstream day values.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Sprint</div><div class="rm-def-body">A fixed 10-calendar-day period (2 working weeks). Standard time unit in both calculators.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">MAX() logic</div><div class="rm-def-body">After requirements, teams work in parallel. Calendar duration = the longest workstream (MAX), not the sum of all workstreams (SUM).</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Client TAT</div><div class="rm-def-body">Client Turnaround Time — how long the client takes to respond to a clarification or approve a deliverable. Multiplied by the number of cycles to give total waiting time.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">ADR</div><div class="rm-def-body">Architecture Decision Record — a formal document that records the agreed architecture approach. Required to exit an EC2 hold.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">ARB</div><div class="rm-def-body">Architecture Review Board — the governance body that approves ADRs. Meets on a fixed schedule; submissions cannot be fast-tracked.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Team abbreviations</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">BA / PO</div><div class="rm-def-body">Business Analyst / Product Owner — requirements, mapping, user stories, UAT.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Data Eng</div><div class="rm-def-body">Data Engineering — ingestion pipelines, transformations, layer movement.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">DevOps</div><div class="rm-def-body">DevOps / Platform — CI/CD, environment provisioning, infrastructure, releases.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">DataOps</div><div class="rm-def-body">Pipeline orchestration, monitoring, and SLA alerting — tracked separately from DevOps.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Security / IAM</div><div class="rm-def-body">Security and access management — IAM roles, encryption, access policies.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Semantic / Modeler</div><div class="rm-def-body">Semantic / Data Modeler — Redshift layer, grain definitions, conformed dimensions.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">BI / Dashboard</div><div class="rm-def-body">BI Developer — reports and dashboards in Power BI, Tableau, Looker, or QuickSight.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">QA / Data QA</div><div class="rm-def-body">Quality Assurance — data validation, reconciliation, regression testing, sign-off.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Data Steward / Gov</div><div class="rm-def-body">Data Steward / Governance — classification, lineage, retention, metadata, approvals.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Client SME</div><div class="rm-def-body">Client Subject Matter Expert — the client contact for clarifications, UAT, and data access.</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function openReadme() { document.getElementById('readme-overlay').classList.add('open'); }
+function closeReadme() { document.getElementById('readme-overlay').classList.remove('open'); }
+function showRTab(id, tab) {
+  document.querySelectorAll('.readme-rpanel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.readme-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('rpanel-' + id).classList.add('active');
+  tab.classList.add('active');
+}
+</script>
+
+</body>
+</html>

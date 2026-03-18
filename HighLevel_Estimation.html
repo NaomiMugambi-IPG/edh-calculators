@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS / EDH High-Level Estimation Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f12; --surface:#13161b; --surface2:#1a1e25; --surface3:#21262f;
+    --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+    --text:#e8eaf0; --text2:#8b90a0; --text3:#5a5f6e;
+    --accent:#4f9cf9; --accent2:#2d7ef7; --accent-glow:rgba(79,156,249,0.15);
+    --green:#3ecf8e; --green-bg:rgba(62,207,142,0.1);
+    --amber:#f6a623; --amber-bg:rgba(246,166,35,0.1);
+    --red:#f26b6b; --red-bg:rgba(242,107,107,0.1);
+    --purple:#a78bfa; --purple-bg:rgba(167,139,250,0.1);
+    --teal:#48d2a0; --teal-bg:rgba(72,210,160,0.1);
+    --font-d:'Syne',sans-serif; --font-b:'DM Sans',sans-serif; --font-m:'DM Mono',monospace;
+    --r:10px; --rs:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:14px;line-height:1.6;min-height:100vh;}
+  .app{display:flex;min-height:100vh;}
+
+  /* ── SIDEBAR ── */
+  .sidebar{width:264px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;}
+  .sb-logo{padding:0 24px 24px;border-bottom:1px solid var(--border);margin-bottom:18px;}
+  .sb-tag{font-family:var(--font-m);font-size:10px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px;}
+  .sb-title{font-family:var(--font-d);font-size:17px;font-weight:700;line-height:1.2;}
+  .sb-sub{font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--font-m);}
+  .nav-sec{padding:0 16px;margin-bottom:4px;}
+  .nav-label{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--rs);cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;}
+  .nav-item:hover{background:var(--surface2);color:var(--text);}
+  .nav-item.active{background:var(--accent-glow);color:var(--accent);}
+  .nav-item.done{color:var(--text3);}
+  .step-num{width:20px;height:20px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--font-m);flex-shrink:0;transition:all .15s;}
+  .nav-item.active .step-num{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .nav-item.done .step-num{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+  .sb-footer{margin-top:auto;padding:20px 24px 0;border-top:1px solid var(--border);}
+  .phase-badge{display:inline-flex;align-items:center;gap:6px;background:var(--accent-glow);border:1px solid rgba(79,156,249,.2);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--accent);font-family:var(--font-m);}
+  .phase-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* ── MAIN ── */
+  .main{flex:1;padding:40px 48px;max-width:900px;}
+  .step-panel{display:none;}
+  .step-panel.active{display:block;animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+  .prog-hdr{display:flex;align-items:center;gap:8px;margin-bottom:28px;}
+  .prog-track{flex:1;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+  .prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease;}
+  .prog-lbl{font-family:var(--font-m);font-size:11px;color:var(--text3);min-width:36px;text-align:right;}
+
+  .step-tag{font-family:var(--font-m);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
+  .step-title{font-family:var(--font-d);font-size:28px;font-weight:700;line-height:1.15;margin-bottom:8px;}
+  .step-desc{font-size:14px;color:var(--text2);max-width:580px;margin-bottom:28px;}
+
+  /* ── FORM ── */
+  .field-group{margin-bottom:20px;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+  .field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;}
+  label.lbl{display:block;font-size:11px;font-weight:500;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px;font-family:var(--font-m);}
+  label.lbl .req{color:var(--accent);margin-left:2px;}
+  input[type=text],input[type=email],input[type=date],select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:var(--font-b);font-size:14px;padding:10px 13px;outline:none;transition:border-color .15s,box-shadow .15s;appearance:none;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+  select option{background:var(--surface2);}
+  input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.5);}
+  textarea{resize:vertical;min-height:72px;}
+
+  /* ── SECTION HEADERS ── */
+  .sec-hdr{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 var(--rs) var(--rs) 0;padding:10px 16px;margin-bottom:16px;margin-top:24px;}
+  .sec-hdr-title{font-family:var(--font-d);font-size:13px;font-weight:600;color:var(--accent);}
+  .sec-hdr-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+
+  /* ── SCENARIO CARDS ── */
+  .scenario-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .scenario-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;cursor:pointer;transition:all .15s;position:relative;}
+  .scenario-card:hover{border-color:var(--border2);background:var(--surface3);}
+  .scenario-card.selected{border-color:var(--accent);background:var(--accent-glow);}
+  .scenario-card input[type=radio]{display:none;}
+  .sc-code{font-family:var(--font-m);font-size:10px;color:var(--text3);margin-bottom:3px;}
+  .sc-name{font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-d);margin-bottom:3px;}
+  .sc-desc{font-size:11px;color:var(--text2);line-height:1.5;}
+  .scenario-card.selected .sc-name{color:var(--accent);}
+  .scenario-card.selected .sc-code{color:rgba(79,156,249,.6);}
+
+  /* ── YES/NO TOGGLE ROW ── */
+  .yn-grid{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:20px;}
+  .yn-row{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface);transition:background .12s;}
+  .yn-row:last-child{border-bottom:none;}
+  .yn-row:hover{background:var(--surface2);}
+  .yn-label{flex:1;font-size:13px;color:var(--text);line-height:1.4;}
+  .yn-hint{font-size:10px;color:var(--text3);margin-top:1px;font-style:italic;}
+  .yn-btns{display:flex;gap:6px;flex-shrink:0;margin-left:16px;}
+  .yn-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface3);color:var(--text2);font-size:12px;cursor:pointer;transition:all .12s;font-family:var(--font-b);}
+  .yn-btn:hover{border-color:var(--accent);color:var(--text);}
+  .yn-btn.sel-yes{background:var(--green-bg);border-color:var(--green);color:var(--green);font-weight:500;}
+  .yn-btn.sel-no{background:rgba(242,107,107,.18);border-color:#f26b6b;color:#f26b6b;font-weight:500;}
+
+  /* ── NUMERIC / SELECT INPUTS ── */
+  .num-row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface);}
+  .num-row:last-child{border-bottom:none;}
+  .num-label{flex:1;font-size:13px;color:var(--text);}
+  .num-hint{font-size:10px;color:var(--text3);font-style:italic;}
+  .num-input{width:72px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--amber);font-family:var(--font-m);font-size:13px;padding:6px 10px;outline:none;text-align:center;}
+  .num-input:focus{border-color:var(--accent);}
+  .sel-input{background:var(--surface3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--amber);font-family:var(--font-b);font-size:12px;padding:6px 10px;outline:none;min-width:140px;}
+  .sel-input:focus{border-color:var(--accent);}
+
+  /* ── SCORE BAR ── */
+  .score-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;}
+  .score-lbl{font-size:11px;color:var(--text3);font-family:var(--font-m);text-transform:uppercase;letter-spacing:.08em;min-width:110px;}
+  .score-track{flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+  .score-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .4s ease;}
+  .score-val{font-family:var(--font-m);font-size:16px;font-weight:500;color:var(--accent);min-width:24px;text-align:right;}
+  .size-pill{padding:3px 12px;border-radius:20px;font-family:var(--font-m);font-size:11px;font-weight:500;border:1px solid;margin-left:8px;}
+
+  /* ── RESULTS ── */
+  .results-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:16px;}
+  .result-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px;}
+  .result-headline{display:flex;align-items:baseline;gap:14px;margin-bottom:20px;flex-wrap:wrap;}
+  .result-days{font-family:var(--font-d);font-size:56px;font-weight:700;color:var(--accent);line-height:1;}
+  .result-days-lbl{font-size:13px;color:var(--text2);}
+  .result-divider{width:1px;height:46px;background:var(--border);}
+  .result-stat{text-align:center;}
+  .result-stat-val{font-family:var(--font-d);font-size:28px;font-weight:600;color:var(--text);}
+  .result-stat-lbl{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.3;}
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+  .stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;}
+  .stat-lbl{font-size:10px;color:var(--text3);font-family:var(--font-m);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
+  .stat-val{font-size:22px;font-weight:500;font-family:var(--font-d);}
+  .stat-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+
+  /* team bars */
+  .team-bars{margin-top:4px;}
+  .team-bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);}
+  .team-bar-row:last-child{border-bottom:none;}
+  .team-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .team-name{font-size:12px;color:var(--text2);min-width:130px;}
+  .team-track{flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+  .team-fill{height:100%;border-radius:3px;transition:width .5s ease;}
+  .team-days{font-family:var(--font-m);font-size:11px;color:var(--text2);min-width:55px;text-align:right;}
+  .team-pct{font-family:var(--font-m);font-size:10px;color:var(--text3);min-width:32px;text-align:right;}
+
+  /* workstream table */
+  .ws-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px;}
+  .ws-table th{font-size:10px;font-weight:500;color:var(--text3);padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;font-family:var(--font-m);}
+  .ws-table th:first-child{text-align:left;}
+  .ws-table td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:right;color:var(--text2);}
+  .ws-table td:first-child{text-align:left;font-weight:500;color:var(--text);}
+  .ws-table tr:last-child td{border-bottom:none;}
+  .ws-table td.hi{color:var(--accent);font-weight:600;}
+  .ws-table td.g{color:var(--green);}
+
+  /* nav buttons */
+  .nav-btns{display:flex;justify-content:space-between;align-items:center;margin-top:32px;padding-top:20px;border-top:1px solid var(--border);}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:var(--font-b);border:none;}
+  .btn-pri{background:var(--accent);color:#fff;}
+  .btn-pri:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,156,249,.3);}
+  .btn-sec{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}
+  .btn-sec:hover{background:var(--surface3);color:var(--text);}
+  .btn-calc{background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:14px;padding:12px 28px;}
+  .btn-calc:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 20px rgba(79,156,249,.35);}
+
+  .sl{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;font-family:var(--font-m);}
+  .info-note{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;font-size:11px;color:var(--text3);line-height:1.6;margin-top:12px;}
+  .info-note strong{color:var(--text2);font-weight:500;}
+
+  .placeholder{text-align:center;padding:60px 20px;color:var(--text3);}
+  .placeholder .ico{font-size:40px;margin-bottom:12px;opacity:.3;}
+
+  /* MATRIX view */
+  .matrix-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:12px;}
+  .matrix-title{font-family:var(--font-d);font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text);}
+  .matrix-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .matrix-table th{font-size:10px;font-weight:500;color:var(--text3);padding:6px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:var(--font-m);}
+  .matrix-table th:first-child{text-align:left;}
+  .matrix-table td{padding:6px 10px;border-bottom:1px solid var(--border);text-align:right;color:var(--text2);}
+  .matrix-table td:first-child{text-align:left;font-weight:500;color:var(--text);font-size:12px;}
+  .matrix-table tr:last-child td{border-bottom:none;}
+  .matrix-table td.cur{background:var(--accent-glow);color:var(--accent);font-weight:600;}
+  .matrix-table tr:hover td{background:var(--surface2);}
+  .matrix-table tr:hover td.cur{background:var(--accent-glow);}
+
+  /* tabs for matrix */
+  .tab-row{display:flex;gap:4px;margin-bottom:12px;}
+  .tab-btn{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);transition:all .12s;font-family:var(--font-m);}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tab-pane{display:none;}
+  .tab-pane.active{display:block;}
+
+  .scrollable{max-height:480px;overflow-y:auto;padding-right:4px;}
+  .scrollable::-webkit-scrollbar{width:3px;}
+  .scrollable::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+  /* ── MANAGEMENT SUMMARY ── */
+  .mgmt-card{background:#fafaf8;border:1px solid #e0ddd6;border-radius:12px;overflow:hidden;font-family:'IBM Plex Sans','DM Sans',sans-serif;margin-top:8px;}
+  .mgmt-header{background:#1a1a1a;padding:20px 24px;}
+  .mgmt-eyebrow{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#666;font-family:var(--font-m);margin-bottom:3px;}
+  .mgmt-proj-name{font-size:20px;font-weight:600;color:#fff;line-height:1.2;margin-bottom:6px;font-family:'Playfair Display','DM Sans',serif;}
+  .mgmt-proj-meta{font-size:11px;color:#888;display:flex;gap:16px;flex-wrap:wrap;}
+  .mgmt-proj-meta strong{color:#aaa;font-weight:500;}
+  .mgmt-conf{display:flex;align-items:center;gap:10px;padding:10px 24px;border-bottom:1px solid #e0ddd6;}
+  .mgmt-conf-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .mgmt-conf-dot.pre{background:#c47a00;}
+  .mgmt-conf-label{font-size:11px;font-weight:500;font-family:var(--font-m);color:#7a4a00;}
+  .mgmt-conf-desc{font-size:11px;color:#6a6a6a;line-height:1.5;}
+  .mgmt-body{padding:20px 24px;}
+  .mgmt-desc{font-size:13px;color:#3a3a3a;line-height:1.7;margin-bottom:18px;padding:12px 16px;background:#f4f2ec;border-radius:8px;border-left:3px solid #c0bcb0;}
+  .mgmt-hl-row{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:18px;padding:16px 20px;background:#1a1a1a;border-radius:10px;}
+  .mgmt-days-big{font-size:52px;font-weight:600;color:#fff;line-height:1;font-family:'Playfair Display','DM Sans',serif;}
+  .mgmt-days-lbl{font-size:12px;color:#888;margin-top:2px;}
+  .mgmt-stats-mini{display:flex;gap:14px;align-items:center;}
+  .mgmt-vdiv{width:1px;height:36px;background:#2a2a2a;}
+  .mgmt-stat-mini{}
+  .mgmt-stat-mini-val{font-size:22px;font-weight:500;color:#fff;font-family:'Playfair Display','DM Sans',serif;}
+  .mgmt-stat-mini-lbl{font-size:10px;color:#666;line-height:1.3;}
+  .mgmt-size-chip{padding:8px 16px;border-radius:8px;text-align:center;}
+  .mgmt-size-chip-val{font-size:26px;font-weight:600;line-height:1;font-family:'Playfair Display','DM Sans',serif;}
+  .mgmt-size-chip-lbl{font-size:9px;font-family:var(--font-m);letter-spacing:.06em;margin-top:2px;}
+  .mgmt-section-lbl{font-size:9px;font-weight:500;color:#8a8a8a;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-m);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #e8e6e0;}
+  .mgmt-effort-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#e0ddd6;border:1px solid #e0ddd6;border-radius:8px;overflow:hidden;margin-bottom:18px;}
+  .mgmt-effort-cell{background:#fff;padding:12px 14px;}
+  .mgmt-effort-cell-lbl{font-size:9px;color:#8a8a8a;text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-m);margin-bottom:3px;}
+  .mgmt-effort-cell-val{font-size:18px;font-weight:500;color:#1a1a1a;font-family:'Playfair Display','DM Sans',serif;}
+  .mgmt-effort-cell-sub{font-size:10px;color:#8a8a8a;margin-top:1px;}
+  .mgmt-client-block{background:#e8eef5;border:1px solid #c0d0e0;border-radius:8px;padding:14px 16px;margin-bottom:18px;}
+  .mgmt-client-title{font-size:9px;font-weight:500;color:#1a3a5c;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-m);margin-bottom:8px;}
+  .mgmt-client-row{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #d0dce8;font-size:12px;}
+  .mgmt-client-row:last-child{border-bottom:none;padding-bottom:0;}
+  .mgmt-client-lbl{font-weight:500;color:#1a3a5c;min-width:120px;flex-shrink:0;}
+  .mgmt-client-val{color:#2a3a4a;}
+  .mgmt-next{background:#1a1a1a;border-radius:8px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start;}
+  .mgmt-next-arrow{font-size:20px;color:#fff;flex-shrink:0;margin-top:1px;font-family:'Playfair Display',serif;}
+  .mgmt-next-lbl{font-size:9px;color:#666;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-m);margin-bottom:4px;}
+  .mgmt-next-text{font-size:12px;color:#e8e8e8;line-height:1.55;}
+  .mgmt-next-text strong{color:#fff;font-weight:500;}
+  .mgmt-footer{padding:10px 24px;border-top:1px solid #e0ddd6;display:flex;justify-content:space-between;font-size:9px;color:#aaa;font-family:var(--font-m);}
+  .mgmt-print-row{display:flex;justify-content:flex-end;gap:8px;padding:12px 24px 16px;}
+  .mgmt-print-btn{padding:7px 16px;border-radius:6px;border:1px solid #e0ddd6;background:#fff;font-size:11px;color:#4a4a4a;cursor:pointer;font-family:var(--font-b);transition:all .15s;}
+  .mgmt-print-btn:hover{border-color:#1a3a5c;color:#1a3a5c;}
+
+  /* ── README OVERLAY ── */
+  .rm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;}
+  .rm-overlay.open{display:flex;}
+  .rm-modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+  .rm-topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .rm-topbar-title{font-family:var(--font-d);font-size:16px;font-weight:700;color:var(--text);}
+  .rm-topbar-sub{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--font-m);}
+  .rm-close{width:30px;height:30px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+  .rm-close:hover{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+  .rm-tabs{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+  .rm-tab{padding:6px 14px;border-radius:20px 20px 0 0;font-size:11px;font-weight:500;cursor:pointer;border:1px solid transparent;border-bottom:none;color:var(--text2);background:transparent;transition:all .12s;}
+  .rm-tab:hover{color:var(--text);}
+  .rm-tab.active{background:var(--surface2);border-color:var(--border2);color:var(--accent);border-bottom:1px solid var(--surface2);margin-bottom:-1px;}
+  .rm-body{overflow-y:auto;padding:24px;flex:1;}
+  .rm-body::-webkit-scrollbar{width:4px;}
+  .rm-body::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+  .rm-rpanel{display:none;}
+  .rm-rpanel.active{display:block;}
+  .rm-section{margin-bottom:1.5rem;}
+  .rm-section-title{font-family:var(--font-d);font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .rm-prose{font-size:13px;color:var(--text2);line-height:1.75;margin-bottom:10px;}
+  .rm-prose strong{color:var(--text);font-weight:500;}
+  .rm-steps{display:flex;flex-direction:column;gap:8px;}
+  .rm-step{display:flex;gap:12px;padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;}
+  .rm-step-num{width:22px;height:22px;border-radius:50%;background:var(--accent-glow);border:1px solid rgba(79,156,249,.3);color:var(--accent);font-size:10px;font-family:var(--font-m);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+  .rm-step-body{font-size:12px;color:var(--text2);line-height:1.65;}
+  .rm-step-body strong{display:block;font-weight:500;color:var(--text);margin-bottom:3px;}
+  .rm-callout{padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:10px;font-size:12px;line-height:1.65;}
+  .rm-callout.warn{background:var(--amber-bg);border-left:3px solid var(--amber);color:#b8710a;}
+  .rm-callout.warn strong{color:#7a4a06;font-weight:500;}
+  .rm-callout.info{background:var(--accent-glow);border-left:3px solid var(--accent);color:var(--text2);}
+  .rm-callout.info strong{color:var(--text);font-weight:500;}
+  .rm-def-list{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px;}
+  .rm-def-row{display:flex;gap:12px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;}
+  .rm-def-row:last-child{border-bottom:none;}
+  .rm-def-row:nth-child(even){background:var(--surface2);}
+  .rm-def-term{font-weight:500;color:var(--text);min-width:160px;flex-shrink:0;}
+  .rm-def-body{color:var(--text2);line-height:1.55;}
+  .rm-pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;margin:0 2px;vertical-align:middle;}
+  .rm-pill.g{background:var(--green-bg);color:var(--green);}
+  .rm-pill.a{background:var(--amber-bg);color:var(--amber);}
+  .rm-pill.r{background:var(--red-bg);color:var(--red);}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-tag">AWS / EDH</div>
+      <div class="sb-title">High-Level<br>Estimator</div>
+      <div class="sb-sub">Pre-consultation sizing tool</div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Steps</div>
+      <div class="nav-item active" id="nav-1" onclick="goTo(1)">
+        <span class="step-num">1</span>
+        <div><div>Project intake</div><div style="font-size:10px;color:var(--text3)">Name, requester, date</div></div>
+      </div>
+      <div class="nav-item" id="nav-2" onclick="goTo(2)">
+        <span class="step-num">2</span>
+        <div><div>Scenario</div><div style="font-size:10px;color:var(--text3)">Select delivery type</div></div>
+      </div>
+      <div class="nav-item" id="nav-3" onclick="goTo(3)">
+        <span class="step-num">3</span>
+        <div><div>Data profile</div><div style="font-size:10px;color:var(--text3)">13 scope questions</div></div>
+      </div>
+      <div class="nav-item" id="nav-4" onclick="goTo(4)">
+        <span class="step-num">4</span>
+        <div><div>Client TAT</div><div style="font-size:10px;color:var(--text3)">Turnaround dependencies</div></div>
+      </div>
+      <div class="nav-item" id="nav-5" onclick="goTo(5)">
+        <span class="step-num">5</span>
+        <div><div>Estimate</div><div style="font-size:10px;color:var(--text3)">Days · sprints · teams</div></div>
+      </div>
+    </div>
+    <div class="sb-footer">
+      <div class="phase-badge">High-Level · Pre-consultation</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:10px;line-height:1.5;">No team consultation needed. Estimates update automatically from your inputs.</div>
+      <button onclick="openReadme()" style="margin-top:14px;width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;font-family:var(--font-b);cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">? How to use this tool</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ═══ STEP 1: INTAKE ═══ -->
+    <div class="step-panel active" id="step-1">
+      <div class="prog-hdr"><div class="prog-track"><div class="prog-fill" style="width:20%"></div></div><div class="prog-lbl">1 / 5</div></div>
+      <div class="step-tag">Step 01</div>
+      <div class="step-title">Project intake</div>
+      <div class="step-desc">Capture the project basics. This information flows into the estimate output and the project register.</div>
+
+      <div class="field-row">
+        <div class="field-group"><label class="lbl">Project number <span class="req">*</span></label><input type="text" id="proj-num" placeholder="e.g. P-0154"></div>
+        <div class="field-group"><label class="lbl">Intake date <span class="req">*</span></label><input type="date" id="proj-date"></div>
+      </div>
+      <div class="field-group"><label class="lbl">Project / Initiative name <span class="req">*</span></label><input type="text" id="proj-name" placeholder="e.g. Finance Reporting — Q3 Data Pipeline"></div>
+      <div class="field-row">
+        <div class="field-group"><label class="lbl">Requester name <span class="req">*</span></label><input type="text" id="req-name" placeholder="Full name"></div>
+        <div class="field-group"><label class="lbl">Requester team</label><input type="text" id="req-team" placeholder="e.g. Finance, HR, Workwise"></div>
+      </div>
+      <div class="field-group"><label class="lbl">Requester email</label><input type="email" id="req-email" placeholder="name@company.com"></div>
+      <div class="field-group"><label class="lbl">Client / Sponsor</label><input type="text" id="client" placeholder="Business sponsor or client name"></div>
+      <div class="field-group"><label class="lbl">Project description <span class="req">*</span></label><textarea id="proj-desc" placeholder="What is this project trying to achieve? What problem does it solve for the business?" style="min-height:88px;"></textarea></div>
+      <div class="field-group"><label class="lbl">Additional notes</label><textarea id="notes" placeholder="Any constraints, dependencies, or context worth capturing at intake..."></textarea></div>
+
+      <div class="nav-btns"><div></div><button class="btn btn-pri" onclick="goTo(2)">Next: Select scenario →</button></div>
+    </div>
+
+    <!-- ═══ STEP 2: SCENARIO ═══ -->
+    <div class="step-panel" id="step-2">
+      <div class="prog-hdr"><div class="prog-track"><div class="prog-fill" style="width:40%"></div></div><div class="prog-lbl">2 / 5</div></div>
+      <div class="step-tag">Step 02</div>
+      <div class="step-title">Select delivery scenario</div>
+      <div class="step-desc">Choose the scenario that best describes this project. This drives which questions are shown in Step 3 and determines the estimation engine path.</div>
+
+      <div class="scenario-grid" id="scen-grid">
+        <label class="scenario-card" onclick="selectScen('S1',this)"><input type="radio" name="scen" value="S1">
+          <div class="sc-code">S1</div><div class="sc-name">New ingestion → Gold/Semantic</div>
+          <div class="sc-desc">Files or APIs received from client. Pipelines land data and move to Gold and/or Semantic (Redshift) as required.</div></label>
+
+        <label class="scenario-card" onclick="selectScen('S2',this)"><input type="radio" name="scen" value="S2">
+          <div class="sc-code">S2</div><div class="sc-name">Bronze → Silver → Gold</div>
+          <div class="sc-desc">Data already exists in EDH Bronze. Work is transformation and layer movement only — no new ingestion.</div></label>
+
+        <label class="scenario-card" onclick="selectScen('S3',this)"><input type="radio" name="scen" value="S3">
+          <div class="sc-code">S3</div><div class="sc-name">Gold → Semantic (Redshift)</div>
+          <div class="sc-desc">Curated Gold data modeled into agreed Semantic / Redshift structures (grain, joins, conformed dimensions).</div></label>
+
+        <label class="scenario-card" onclick="selectScen('S4',this)"><input type="radio" name="scen" value="S4">
+          <div class="sc-code">S4</div><div class="sc-name">Redshift → Dashboards</div>
+          <div class="sc-desc">Data already modeled in Redshift / Semantic. Focus is BI dataset and dashboard build plus validation only.</div></label>
+
+        <label class="scenario-card" onclick="selectScen('S5',this)"><input type="radio" name="scen" value="S5">
+          <div class="sc-code">S5</div><div class="sc-name">Hybrid A — Light</div>
+          <div class="sc-desc">Some EDH data exists; minimal reconciliation; limited ingestion and transformations required.</div></label>
+
+        <label class="scenario-card" onclick="selectScen('S6',this)"><input type="radio" name="scen" value="S6">
+          <div class="sc-code">S6</div><div class="sc-name">Hybrid B — Heavy</div>
+          <div class="sc-desc">Mix of existing EDH and new ingestion. Includes reconciliation, governance review, semantic alignment, and downstream impact analysis.</div></label>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sec" onclick="goTo(1)">← Back</button>
+        <button class="btn btn-pri" onclick="goTo(3)">Next: Data profile →</button>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 3: DATA PROFILE (13 yes/no questions) ═══ -->
+    <div class="step-panel" id="step-3">
+      <div class="prog-hdr"><div class="prog-track"><div class="prog-fill" style="width:60%"></div></div><div class="prog-lbl">3 / 5</div></div>
+      <div class="step-tag">Step 03</div>
+      <div class="step-title">Data profile</div>
+      <div class="step-desc">Answer these 13 questions about this project's scope and complexity. Each Yes answer adds to the complexity score which determines the t-shirt size.</div>
+
+      <!-- Live score -->
+      <div class="score-wrap">
+        <div class="score-lbl">Complexity score</div>
+        <div class="score-track"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+        <div class="score-val" id="score-val">0</div>
+        <div class="size-pill" id="size-pill" style="color:var(--green);border-color:var(--green);">XS</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-m);margin-left:4px;">/ 13</div>
+      </div>
+
+      <div class="sec-hdr" style="margin-top:0;">
+        <div class="sec-hdr-title">B. Scenario selection & data profile</div>
+        <div class="sec-hdr-sub">Answer Yes or No for each question. These map directly to the complexity scoring formula in the calculator.</div>
+      </div>
+
+      <div class="yn-grid">
+        <div class="yn-row">
+          <div class="yn-label">Is this a net-new dataset?<div class="yn-hint"><em>Why this matters:</em> Net-new datasets require full pipeline design, source connection setup, and governance onboarding — no reuse of existing work.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q1',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q1',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Is any of this already in EDH?<div class="yn-hint"><em>Why this matters:</em> Existing EDH data reduces ingestion effort but may introduce reconciliation and downstream impact risk.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q2',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q2',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Is data already used by existing dashboards?<div class="yn-hint"><em>Why this matters:</em> If dashboards already consume this data, any changes carry a risk of breaking live reports — regression testing becomes mandatory.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q3',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q3',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Does the Semantic / Redshift model need changes?<div class="yn-hint"><em>Why this matters:</em> Schema changes to an existing Semantic model carry downstream impact risk and require regression checks across all consumers.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q4',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q4',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Are transformations required beyond simple mapping?<div class="yn-hint"><em>Why this matters:</em> Complex transformations (derived fields, conditional logic, aggregations) multiply Data Engineering effort significantly — Low ×3, Medium ×5, High ×7.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q5',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q5',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Security / IAM role work needed?<div class="yn-hint"><em>Why this matters:</em> New IAM roles require a security review before they can be applied — this is a sequential dependency that blocks other build work.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q6',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q6',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">DevOps / pipeline setup needed?<div class="yn-hint"><em>Why this matters:</em> New CI/CD pipelines, environment provisioning, or infrastructure setup adds DevOps effort that is often underestimated.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q7',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q7',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Mapping sheet required?<div class="yn-hint"><em>Why this matters:</em> A formal mapping sheet requires BA time to build, client sign-off, and creates an approval gate before Data Engineering can start build.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q8',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q8',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Multiple approval loops expected?<div class="yn-hint"><em>Why this matters:</em> Each additional approval cycle adds calendar time — committee approvals can add 1–2 weeks per cycle that cannot be compressed.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q9',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q9',1,this)">No</button>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Client provides data/access (keys, files, permissions)?<div class="yn-hint"><em>Why this matters:</em> Client data provision delays are the #1 external blocker on EDH projects — every day of waiting is a day of calendar time added to the project.</div></div>
+          <div class="yn-btns">
+            <button class="yn-btn" onclick="ynAnswer('q10',0,this)">Yes</button>
+            <button class="yn-btn" onclick="ynAnswer('q10',1,this)">No</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-hdr">
+        <div class="sec-hdr-title">Additional data profile signals</div>
+        <div class="sec-hdr-sub">Three more scope questions that sharpen the estimate.</div>
+      </div>
+      <div class="yn-grid">
+        <div class="yn-row">
+          <div class="yn-label">Where is the primary dataset today?<div class="yn-hint"><em>Why this matters:</em> The starting layer determines which workstreams are active — a dataset already in Gold skips ingestion and pipeline build entirely.</div></div>
+          <div class="yn-btns">
+            <select class="sel-input" id="q-source" onchange="updateScore()">
+              <option value="">— Select —</option>
+              <option value="External">External (new ingestion)</option>
+              <option value="Bronze">Bronze</option>
+              <option value="Gold">Gold</option>
+              <option value="Redshift">Redshift / Semantic</option>
+              <option value="Mixed">Mixed</option>
+            </select>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Target deliverable<div class="yn-hint"><em>Why this matters:</em> Dashboards add significant BI and UAT effort. A Gold-only target has no BI workstream at all.</div></div>
+          <div class="yn-btns">
+            <select class="sel-input" id="q-target" onchange="updateScore()">
+              <option value="">— Select —</option>
+              <option value="Gold">Gold layer</option>
+              <option value="Semantic">Semantic / Redshift</option>
+              <option value="Dashboards">Dashboards</option>
+              <option value="Combination">Combination</option>
+            </select>
+          </div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-label">Ingestion method (if External or Mixed source)<div class="yn-hint"><em>Why this matters:</em> A new API or database extract connection can add 3–5 days of DevOps and Data Engineering work before any transformation begins.</div></div>
+          <div class="yn-btns">
+            <select class="sel-input" id="q-ingest" onchange="updateScore()">
+              <option value="">— N/A —</option>
+              <option value="Files">Files (flat file drop)</option>
+              <option value="API">API connection</option>
+              <option value="Database extract">Database extract</option>
+              <option value="Vendor tool">Vendor tool</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sec" onclick="goTo(2)">← Back</button>
+        <button class="btn btn-pri" onclick="goTo(4)">Next: Client TAT →</button>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 4: CLIENT TAT ═══ -->
+    <div class="step-panel" id="step-4">
+      <div class="prog-hdr"><div class="prog-track"><div class="prog-fill" style="width:80%"></div></div><div class="prog-lbl">4 / 5</div></div>
+      <div class="step-tag">Step 04</div>
+      <div class="step-title">Client turnaround & dependencies</div>
+      <div class="step-desc">These fields are optional but improve accuracy significantly. Client TAT and availability are the biggest external factors in calendar duration — each cycle adds waiting time that teams cannot control.</div>
+
+      <div class="sec-hdr" style="margin-top:0;">
+        <div class="sec-hdr-title">C. Client turnaround & dependencies</div>
+        <div class="sec-hdr-sub">Leave fields blank to use the default values shown. Defaults are calibrated to a Medium SME availability scenario.</div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px;">
+        <div class="num-row">
+          <div class="num-label"># Clarification cycles<div class="num-hint"><em>Why this matters:</em> Each clarification cycle × client TAT directly adds calendar days. Most PMs underestimate this number.</div></div>
+          <input type="number" class="num-input" id="tat-nc" value="1" min="0" max="10" onchange="updateScore()">
+        </div>
+        <div class="num-row">
+          <div class="num-label">Client TAT per clarification cycle (days)<div class="num-hint"><em>Why this matters:</em> How long does it typically take the client to respond to a clarification request? Even 2 days per cycle compounds quickly.</div></div>
+          <input type="number" class="num-input" id="tat-ctat" value="2" min="1" max="14" onchange="updateScore()">
+        </div>
+        <div class="num-row">
+          <div class="num-label"># Approval cycles<div class="num-hint"><em>Why this matters:</em> Governance and architecture sign-offs run on committee cadences — they cannot be accelerated regardless of delivery pace.</div></div>
+          <input type="number" class="num-input" id="tat-na" value="1" min="0" max="5" onchange="updateScore()">
+        </div>
+        <div class="num-row">
+          <div class="num-label">Client TAT per approval cycle (days)<div class="num-hint"><em>Why this matters:</em> Committee reviews often take longer than simple sign-offs. Budget at least 3–5 days for any committee-level approval.</div></div>
+          <input type="number" class="num-input" id="tat-atat" value="2" min="1" max="14" onchange="updateScore()">
+        </div>
+        <div class="num-row">
+          <div class="num-label">Client data / access provision time (days)<div class="num-hint"><em>Why this matters:</em> How long until the client can provide the data files, API credentials, or system access needed to start build? This is often the longest single wait.</div></div>
+          <input type="number" class="num-input" id="tat-prov" value="0" min="0" max="30" onchange="updateScore()">
+        </div>
+        <div class="num-row">
+          <div class="num-label">UAT review time (days)<div class="num-hint"><em>Why this matters:</em> Business UAT with multiple stakeholders generates conflicting feedback — plan a realistic buffer, not a best-case window.</div></div>
+          <input type="number" class="num-input" id="tat-uat" value="7" min="1" max="21" onchange="updateScore()">
+        </div>
+        <div class="num-row" style="border-bottom:none;">
+          <div class="num-label">Client SME availability<div class="num-hint"><em>Why this matters:</em> Low availability multiplies every client-dependent phase — clarifications take longer, UAT stalls, decisions are delayed.</div></div>
+          <select class="sel-input" id="tat-sme" onchange="updateScore()">
+            <option value="High">High — responds within 24h</option>
+            <option value="Medium">Medium — 2–3 days typical</option>
+            <option value="Low">Low — 4+ days typical</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sec" onclick="goTo(3)">← Back</button>
+        <button class="btn btn-calc" onclick="calculate()">Calculate estimate →</button>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 5: RESULTS ═══ -->
+    <div class="step-panel" id="step-5">
+      <div class="prog-hdr"><div class="prog-track"><div class="prog-fill" style="width:100%"></div></div><div class="prog-lbl">5 / 5</div></div>
+      <div class="step-tag">Step 05</div>
+      <div class="step-title">Estimation output</div>
+      <div class="step-desc">Pre-consultation estimate based on your scenario selection and complexity score. No team input required. Based on 10-day sprints with MAX() parallel logic post-requirements.</div>
+
+      <div id="results-out">
+        <div class="placeholder"><div class="ico">⟳</div><p>Complete steps 1–4 and click "Calculate estimate" to see results.</p></div>
+      </div>
+
+      <!-- Management Summary -->
+      <div id="mgmt-summary-hl" style="display:none;margin-top:8px;"></div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sec" onclick="goTo(4)">← Back to TAT</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sec" id="btn-summary-hl" onclick="toggleSummaryHL()" style="border-color:rgba(79,156,249,.4);color:var(--accent);">+ Management summary</button>
+          <button class="btn btn-pri" onclick="resetAll()">+ New estimate</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────
+// Exact values from Engine sheet (calculated by Excel)
+const ENGINE = {
+  S1:{ XS:{days:41,sp:5,ipd:78.72,cpd:4.92,fte:1.92}, S:{days:49,sp:5,ipd:125.44,cpd:7.84,fte:2.56}, M:{days:53,sp:6,ipd:169.6,cpd:10.6,fte:3.2}, L:{days:70,sp:7,ipd:291.2,cpd:18.2,fte:4.16}, XL:{days:81,sp:9,ipd:414.72,cpd:25.92,fte:5.12} },
+  S2:{ XS:{days:25,sp:3,ipd:48,cpd:3,fte:1.92},        S:{days:31,sp:4,ipd:79.36,cpd:4.96,fte:2.56}, M:{days:32,sp:4,ipd:102.4,cpd:6.4,fte:3.2},  L:{days:43,sp:5,ipd:178.88,cpd:11.18,fte:4.16}, XL:{days:49,sp:5,ipd:250.88,cpd:15.68,fte:5.12} },
+  S3:{ XS:{days:28,sp:3,ipd:53.76,cpd:3.36,fte:1.92},  S:{days:34,sp:4,ipd:87.04,cpd:5.44,fte:2.56}, M:{days:35,sp:4,ipd:112,cpd:7,fte:3.2},      L:{days:47,sp:5,ipd:195.52,cpd:12.22,fte:4.16}, XL:{days:54,sp:6,ipd:276.48,cpd:17.28,fte:5.12} },
+  S4:{ XS:{days:22,sp:3,ipd:42.24,cpd:2.64,fte:1.92},  S:{days:26,sp:3,ipd:66.56,cpd:4.16,fte:2.56}, M:{days:27,sp:3,ipd:86.4,cpd:5.4,fte:3.2},   L:{days:38,sp:4,ipd:158.08,cpd:9.88,fte:4.16},  XL:{days:42,sp:5,ipd:215.04,cpd:13.44,fte:5.12} },
+  S5:{ XS:{days:41,sp:5,ipd:78.72,cpd:4.92,fte:1.92},  S:{days:48,sp:5,ipd:122.88,cpd:7.68,fte:2.56}, M:{days:51,sp:6,ipd:163.2,cpd:10.2,fte:3.2}, L:{days:66,sp:7,ipd:274.56,cpd:17.16,fte:4.16}, XL:{days:78,sp:8,ipd:399.36,cpd:24.96,fte:5.12} },
+  S6:{ XS:{days:66,sp:7,ipd:126.72,cpd:7.92,fte:1.92}, S:{days:81,sp:9,ipd:207.36,cpd:12.96,fte:2.56}, M:{days:88,sp:9,ipd:281.6,cpd:17.6,fte:3.2}, L:{days:113,sp:12,ipd:470.08,cpd:29.38,fte:4.16}, XL:{days:134,sp:14,ipd:686.08,cpd:42.88,fte:5.12} },
+};
+
+// Workstream days per scenario per size (from XS/M/XL sheets — intermediate sizes interpolated)
+// [req, nc*ctat, mapping, na*atat, cprov, max(devops,sec,deng,sem,bi,qa), uat, deploy]
+const WS = {
+  S1:{
+    XS:[6,4,4,3,7,11,4,2], S:[7,4,5,4,9,13,5,2], M:[8,4,5,4,10,15,5,2], L:[10,6,7,5,13,19,7,3], XL:[12,6,8,6,15,23,8,3]
+  },
+  S2:{
+    XS:[4,2,3,2,3,7,3,1], S:[5,2,4,2,4,9,4,1], M:[5,2,4,2,4,10,4,1], L:[7,3,5,3,5,13,5,2], XL:[8,3,6,3,6,15,6,2]
+  },
+  S3:{
+    XS:[4,2,3,3,2,9,4,1], S:[5,2,4,4,2,11,5,1], M:[5,2,4,4,2,12,5,1], L:[7,3,5,5,3,15,7,2], XL:[8,3,6,6,3,18,8,2]
+  },
+  S4:{
+    XS:[3,2,2,2,1,7,4,1], S:[4,2,2,2,1,9,5,1], M:[4,2,2,2,1,10,5,1], L:[5,3,3,3,2,13,7,2], XL:[6,3,3,3,2,15,8,2]
+  },
+  S5:{
+    XS:[5,6,5,3,6,9,5,2], S:[6,6,6,4,7,11,6,2], M:[7,6,6,4,8,12,6,2], L:[9,8,8,5,10,15,8,3], XL:[11,10,9,6,12,18,9,3]
+  },
+  S6:{
+    XS:[7,12,6,8,11,14,6,2], S:[9,16,7,10,13,17,7,2], M:[10,16,8,10,15,19,8,2], L:[13,20,10,14,19,24,10,3], XL:[15,24,12,16,23,29,12,3]
+  }
+};
+
+// Team split per scenario
+const TEAM_SPLIT = {
+  S1:{'Data Engineering':.30,'QA / Data QA':.13,'BA / PO':.11,'Semantic / Modeler':.10,'DevOps':.09,'Architect':.08,'BI / Dashboard':.09,'Security / IAM':.05,'Data Steward':.03,'Client SME':.02},
+  S2:{'Data Engineering':.30,'QA / Data QA':.13,'BA / PO':.12,'Semantic / Modeler':.10,'DevOps':.07,'Architect':.07,'BI / Dashboard':.08,'Security / IAM':.05,'Data Steward':.05,'Client SME':.03},
+  S3:{'Semantic / Modeler':.28,'Data Engineering':.14,'BI / Dashboard':.16,'QA / Data QA':.13,'BA / PO':.11,'Architect':.06,'DevOps':.04,'Security / IAM':.03,'Data Steward':.03,'Client SME':.02},
+  S4:{'BI / Dashboard':.38,'QA / Data QA':.18,'BA / PO':.15,'Semantic / Modeler':.10,'Data Engineering':.02,'Architect':.05,'DevOps':.02,'Security / IAM':.04,'Data Steward':.02,'Client SME':.04},
+  S5:{'Data Engineering':.29,'QA / Data QA':.13,'BA / PO':.12,'Semantic / Modeler':.10,'DevOps':.09,'BI / Dashboard':.09,'Architect':.08,'Security / IAM':.05,'Data Steward':.03,'Client SME':.02},
+  S6:{'Data Engineering':.29,'QA / Data QA':.12,'BA / PO':.11,'Semantic / Modeler':.09,'DevOps':.09,'BI / Dashboard':.09,'Architect':.08,'Security / IAM':.06,'Data Steward':.05,'Client SME':.02},
+};
+const TEAM_COLORS={'Data Engineering':'#f6a623','QA / Data QA':'#a78bfa','BA / PO':'#3ecf8e','Semantic / Modeler':'#4f9cf9','DevOps':'#f26b6b','Architect':`#ec8fd0`,'BI / Dashboard':'#6b8cff','Security / IAM':'#ff6b6b','Data Steward':'#48d2a0','Client SME':'#8b90a0'};
+
+const SCEN_NAMES={S1:'New ingestion → Gold/Semantic',S2:'Bronze → Silver → Gold',S3:'Gold → Semantic (Redshift)',S4:'Redshift → Dashboards',S5:'Hybrid A (Light Hybrid)',S6:'Hybrid B (Heavy Hybrid)'};
+const SCEN_DESC={
+  S1:'Files or APIs from client. Ingestion pipelines land data and move to Gold and/or Semantic (Redshift).',
+  S2:'Data already in EDH Bronze. Transformation and layer movement only — no new ingestion.',
+  S3:'Curated Gold data modeled into agreed Semantic / Redshift structures.',
+  S4:'Data already modeled. BI dataset and dashboard build plus validation.',
+  S5:'Some EDH data exists. Limited reconciliation and minor ingestion + transformations.',
+  S6:'New and existing EDH data. Reconciliation, governance review, semantic alignment, downstream impact.',
+};
+
+// Full matrix for reference view
+const ALL_SIZES=['XS','S','M','L','XL'];
+const SIZE_COLORS={XS:'var(--green)',S:'var(--green)',M:'var(--amber)',L:'var(--amber)',XL:'var(--red)'};
+const SIZE_SCORE_THRESHOLDS={XS:[0,3],S:[4,6],M:[7,9],L:[10,12],XL:[13,20]};
+
+// ── STATE ────────────────────────────────────────────────────────────────
+let currentStep=1, selectedScen=null, ynAnswers={}, complexityScore=0;
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────
+function goTo(s){
+  document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('step-'+s).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach((n,i)=>{
+    n.classList.remove('active','done');
+    if(i+1<s) n.classList.add('done');
+  });
+  document.getElementById('nav-'+s).classList.add('active');
+  currentStep=s; window.scrollTo(0,0);
+}
+
+// ── SCENARIO SELECTION ───────────────────────────────────────────────────
+function selectScen(id, card){
+  selectedScen=id;
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+// ── YES/NO ANSWERS ───────────────────────────────────────────────────────
+function ynAnswer(qid, val, btn){
+  ynAnswers[qid]=val; // 0=Yes, 1=No
+  const row=btn.closest('.yn-row');
+  row.querySelectorAll('.yn-btn').forEach(b=>{b.classList.remove('sel-yes','sel-no');});
+  btn.classList.add(val===0?'sel-yes':'sel-no');
+  updateScore();
+}
+
+// ── SCORE CALCULATION ────────────────────────────────────────────────────
+// Count of Yes (0) answers in q1–q10
+function updateScore(){
+  let score=0;
+  for(let i=1;i<=10;i++){
+    if(ynAnswers['q'+i]===0) score++;
+  }
+  complexityScore=score;
+  const maxS=10;
+  document.getElementById('score-fill').style.width=Math.min(score/maxS*100,100)+'%';
+  document.getElementById('score-val').textContent=score;
+  const fill=document.getElementById('score-fill');
+  const pill=document.getElementById('size-pill');
+  const sz=getSize(score);
+  const col=SIZE_COLORS[sz];
+  fill.style.background=col; pill.textContent=sz; pill.style.color=col; pill.style.borderColor=col;
+}
+
+function getSize(score){
+  if(score<=3) return 'XS'; if(score<=6) return 'S'; if(score<=9) return 'M'; if(score<=12) return 'L'; return 'XL';
+}
+
+// ── CALCULATE ────────────────────────────────────────────────────────────
+function calculate(){
+  const scen=selectedScen||'S2';
+  const size=getSize(complexityScore);
+  const data=ENGINE[scen][size];
+  const ts=TEAM_SPLIT[scen]||{};
+  const projName=document.getElementById('proj-name').value||'Unnamed project';
+  const projNum=document.getElementById('proj-num').value||'—';
+  const sCol=SIZE_COLORS[size];
+
+  // Team rows
+  const teamRows=Object.entries(ts).filter(([,p])=>p>0).sort(([,a],[,b])=>b-a).map(([team,pct])=>{
+    const pd=(data.ipd*pct).toFixed(1);
+    const maxP=Math.max(...Object.values(ts));
+    const bw=Math.round(pct/maxP*100);
+    const col=TEAM_COLORS[team]||'#8b90a0';
+    return `<div class="team-bar-row">
+      <div class="team-dot" style="background:${col}"></div>
+      <div class="team-name">${team}</div>
+      <div class="team-track"><div class="team-fill" style="width:${bw}%;background:${col}"></div></div>
+      <div class="team-days">${pd} pd</div>
+      <div class="team-pct">${(pct*100).toFixed(0)}%</div>
+    </div>`;
+  }).join('');
+
+  // Workstream breakdown
+  const wsRow=WS[scen][size];
+  const wsLabels=['Req & intake','Clar cycles × TAT','Mapping build','Approval cycles × TAT','Client data / access','Build (parallel MAX)','UAT','Deploy / release'];
+  const wsRows=wsRow.map((v,i)=>{
+    const isPrimary=i===5;
+    return `<tr><td>${wsLabels[i]}</td><td class="${isPrimary?'hi':''}">${v}d</td></tr>`;
+  }).join('');
+
+  // Full matrix for all scenarios at this size
+  const matrixRows=Object.entries(ENGINE).map(([s,sizes])=>{
+    const d=sizes[size];
+    const isMe=s===scen;
+    return `<tr>
+      <td style="${isMe?'color:var(--accent);font-weight:600;':''}">${SCEN_NAMES[s]}</td>
+      <td class="${isMe?'cur':''}">${d.days}d</td>
+      <td>${d.sp}</td>
+      <td class="${isMe?'g':''}">${d.ipd}</td>
+      <td>${d.cpd}</td>
+      <td>${d.fte}</td>
+    </tr>`;
+  }).join('');
+
+  // All sizes for selected scenario
+  const sizesRows=ALL_SIZES.map(sz=>{
+    const d=ENGINE[scen][sz];
+    const isMe=sz===size;
+    return `<tr>
+      <td class="${isMe?'cur':''}" style="${isMe?'color:'+sCol+';font-weight:600;':''}">${sz}</td>
+      <td class="${isMe?'cur':''}">${d.days}d</td>
+      <td>${d.sp}</td>
+      <td class="${isMe?'g':''}">${d.ipd}</td>
+      <td>${d.cpd}</td>
+      <td>${d.fte}</td>
+    </tr>`;
+  }).join('');
+
+  const html=`
+    <div class="results-card">
+      <div class="result-top">
+        <div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-m);margin-bottom:3px;">${projNum} · ${new Date().toLocaleDateString('en-GB')}</div>
+          <div style="font-family:var(--font-d);font-size:16px;font-weight:700;">${projName}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${SCEN_NAMES[scen]} &mdash; ${SCEN_DESC[scen]}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <div style="padding:6px 14px;border-radius:20px;font-family:var(--font-m);font-size:13px;font-weight:500;border:1px solid ${sCol};background:${sCol}18;color:${sCol};">
+            <span style="width:8px;height:8px;border-radius:50%;background:${sCol};display:inline-block;margin-right:6px;"></span>${size}
+          </div>
+          <div style="padding:6px 12px;border-radius:20px;font-family:var(--font-m);font-size:11px;border:1px solid var(--border2);color:var(--text3);">Score: ${complexityScore}/10</div>
+        </div>
+      </div>
+
+      <div class="result-headline">
+        <div class="result-days">${data.days}</div>
+        <div class="result-days-lbl">calendar<br>days</div>
+        <div class="result-divider"></div>
+        <div class="result-stat"><div class="result-stat-val">${data.sp}</div><div class="result-stat-lbl">sprints<br>10d each</div></div>
+        <div class="result-divider"></div>
+        <div class="result-stat"><div class="result-stat-val">${data.fte}</div><div class="result-stat-lbl">avg internal<br>FTE</div></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-lbl">Internal person-days</div><div class="stat-val" style="color:var(--green)">${data.ipd}</div><div class="stat-sub">Cross-team effort total</div></div>
+        <div class="stat-card"><div class="stat-lbl">Client person-days</div><div class="stat-val">${data.cpd}</div><div class="stat-sub">Client-side commitment</div></div>
+        <div class="stat-card"><div class="stat-lbl">Complexity score</div><div class="stat-val" style="color:${sCol}">${complexityScore}</div><div class="stat-sub">from 10 Yes/No answers</div></div>
+        <div class="stat-card"><div class="stat-lbl">T-shirt size</div><div class="stat-val" style="color:${sCol}">${size}</div><div class="stat-sub">${scen} · ${SCEN_NAMES[scen].split('→')[0].trim()}</div></div>
+      </div>
+
+      <div class="sl">Team effort breakdown (person-days · internal)</div>
+      <div class="team-bars">${teamRows}</div>
+
+      <div class="sl" style="margin-top:16px;">Workstream day breakdown</div>
+      <table class="ws-table">
+        <thead><tr><th style="text-align:left;">Workstream</th><th>Days</th></tr></thead>
+        <tbody>${wsRows}</tbody>
+        <tfoot><tr><td style="font-weight:600;color:var(--text);border-top:1px solid var(--border2);">Total</td><td class="hi" style="border-top:1px solid var(--border2);">${data.days}d</td></tr></tfoot>
+      </table>
+
+      <div class="info-note" style="margin-top:16px;">
+        <strong>How to read this:</strong> Calendar days use MAX() for post-requirements workstreams — teams work in parallel after design and intake phases complete. Person-days represent total effort, not parallel time. This is a pre-consultation estimate. Use the EDH Delivery Estimator for team-validated estimates.
+      </div>
+    </div>
+
+    <div class="sl" style="margin-top:8px;">Scenario comparison — all scenarios at ${size} size</div>
+    <div class="matrix-card">
+      <table class="matrix-table">
+        <thead><tr><th>Scenario</th><th>Days</th><th>Sprints</th><th>Int pd</th><th>Cli pd</th><th>FTE</th></tr></thead>
+        <tbody>${matrixRows}</tbody>
+      </table>
+    </div>
+
+    <div class="sl">All sizes — ${SCEN_NAMES[scen]}</div>
+    <div class="matrix-card">
+      <table class="matrix-table">
+        <thead><tr><th>Size</th><th>Days</th><th>Sprints</th><th>Int pd</th><th>Cli pd</th><th>FTE</th></tr></thead>
+        <tbody>${sizesRows}</tbody>
+      </table>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px;">Highlighted row = current estimate. Adjust your Yes/No answers in Step 3 to move up or down the size scale.</div>
+    </div>
+  `;
+
+  document.getElementById('results-out').innerHTML=html;
+  goTo(5);
+}
+
+// ── RESET ────────────────────────────────────────────────────────────────
+function resetAll(){
+  selectedScen=null; ynAnswers={}; complexityScore=0;
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.yn-btn').forEach(b=>b.classList.remove('sel-yes','sel-no'));
+  document.querySelectorAll('input[type=text],input[type=email],textarea').forEach(i=>i.value='');
+  document.getElementById('tat-nc').value='1';
+  document.getElementById('tat-ctat').value='2';
+  document.getElementById('tat-na').value='1';
+  document.getElementById('tat-atat').value='2';
+  document.getElementById('tat-prov').value='0';
+  document.getElementById('tat-uat').value='7';
+  document.getElementById('results-out').innerHTML='<div class="placeholder"><div class="ico">⟳</div><p>Complete steps 1–4 and click "Calculate estimate" to see results.</p></div>';
+  document.getElementById('score-fill').style.width='0%';
+  document.getElementById('score-val').textContent='0';
+  document.getElementById('size-pill').textContent='XS';
+  document.getElementById('size-pill').style.color='var(--green)';
+  document.getElementById('size-pill').style.borderColor='var(--green)';
+  goTo(1);
+}
+
+
+let summaryHLVisible = false;
+function toggleSummaryHL() {
+  summaryHLVisible = !summaryHLVisible;
+  const el = document.getElementById('mgmt-summary-hl');
+  const btn = document.getElementById('btn-summary-hl');
+  if (!summaryHLVisible) {
+    el.style.display = 'none';
+    btn.textContent = '+ Management summary';
+    return;
+  }
+  btn.textContent = '− Hide summary';
+  el.style.display = 'block';
+  renderSummaryHL();
+}
+
+function renderSummaryHL() {
+  const scen = selectedScen || 'S2';
+  const size = getSize(complexityScore);
+  const data = ENGINE[scen][size];
+  if (!data) return;
+
+  const projName = document.getElementById('proj-name').value || 'Unnamed project';
+  const projNum  = document.getElementById('proj-num').value || '—';
+  const projDesc = document.getElementById('proj-desc')?.value || '';
+  const reqName  = document.getElementById('req-name')?.value || '';
+  const sponsor  = document.getElementById('client')?.value || '';
+  const dateStr  = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const sCol     = SIZE_COLORS[size];
+
+  const SS = {
+    XS:{bg:'#e8f5ee',col:'#1a5c3a',br:'#b0d8c0'},
+    S:{bg:'#e8f5ee',col:'#1a5c3a',br:'#b0d8c0'},
+    M:{bg:'#fef3e0',col:'#7a4a00',br:'#f0d090'},
+    L:{bg:'#fef3e0',col:'#7a4a00',br:'#f0d090'},
+    XL:{bg:'#faeaea',col:'#5c1a1a',br:'#f0b0b0'},
+  };
+  const ss = SS[size] || SS['S'];
+
+  // Client ask from TAT step
+  const nc   = document.getElementById('tat-nc')?.value || '1';
+  const ctat = document.getElementById('tat-ctat')?.value || '2';
+  const na   = document.getElementById('tat-na')?.value || '1';
+  const atat = document.getElementById('tat-atat')?.value || '2';
+  const prov = document.getElementById('tat-prov')?.value || '0';
+  const uat  = document.getElementById('tat-uat')?.value || '7';
+  const sme  = document.getElementById('tat-sme')?.value || 'Medium';
+
+  document.getElementById('mgmt-summary-hl').innerHTML = `
+  <div class="mgmt-card">
+    <div class="mgmt-header">
+      <div class="mgmt-eyebrow">AWS / EDH · Pre-consultation estimate · ${dateStr}</div>
+      <div class="mgmt-proj-name">${projName}</div>
+      <div class="mgmt-proj-meta">
+        ${projNum !== '—' ? '<span><strong>Ref:</strong> ' + projNum + '</span>' : ''}
+        ${sponsor ? '<span><strong>Sponsor:</strong> ' + sponsor + '</span>' : ''}
+        ${reqName ? '<span><strong>Requester:</strong> ' + reqName + '</span>' : ''}
+        <span><strong>Type:</strong> ${SCEN_NAMES[scen]}</span>
+      </div>
+    </div>
+
+    <div class="mgmt-conf">
+      <div class="mgmt-conf-dot pre"></div>
+      <div class="mgmt-conf-label">Pre-consultation estimate</div>
+      <div class="mgmt-conf-desc">Produced before team consultation. Suitable for initial approval and High Level Estimates only — not for firm delivery commitment.</div>
+    </div>
+
+    <div class="mgmt-body">
+      ${projDesc ? '<div class="mgmt-desc">' + projDesc + '</div>' : ''}
+
+      <div class="mgmt-hl-row">
+        <div>
+          <div style="font-size:10px;color:#666;font-family:var(--font-m);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;">Estimated delivery duration</div>
+          <div class="mgmt-days-big">${data.days}</div>
+          <div class="mgmt-days-lbl">calendar days from kick-off to go-live</div>
+        </div>
+        <div class="mgmt-stats-mini">
+          <div class="mgmt-stat-mini">
+            <div class="mgmt-stat-mini-val">${data.sp}</div>
+            <div class="mgmt-stat-mini-lbl">sprints<br>10d each</div>
+          </div>
+          <div class="mgmt-vdiv"></div>
+          <div class="mgmt-stat-mini">
+            <div class="mgmt-stat-mini-val">${data.fte}</div>
+            <div class="mgmt-stat-mini-lbl">avg team<br>FTE</div>
+          </div>
+          <div class="mgmt-vdiv"></div>
+          <div class="mgmt-size-chip" style="background:${ss.bg};border:1px solid ${ss.br};">
+            <div class="mgmt-size-chip-val" style="color:${ss.col};">${size}</div>
+            <div class="mgmt-size-chip-lbl" style="color:${ss.col};">size</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mgmt-section-lbl" style="margin-bottom:8px;">Resource commitment</div>
+      <div class="mgmt-effort-row" style="margin-bottom:18px;">
+        <div class="mgmt-effort-cell">
+          <div class="mgmt-effort-cell-lbl">Internal effort</div>
+          <div class="mgmt-effort-cell-val">${data.ipd}</div>
+          <div class="mgmt-effort-cell-sub">person-days, all teams</div>
+        </div>
+        <div class="mgmt-effort-cell">
+          <div class="mgmt-effort-cell-lbl">Client commitment</div>
+          <div class="mgmt-effort-cell-val">${data.cpd}</div>
+          <div class="mgmt-effort-cell-sub">person-days required</div>
+        </div>
+        <div class="mgmt-effort-cell">
+          <div class="mgmt-effort-cell-lbl">Team size (avg)</div>
+          <div class="mgmt-effort-cell-val">${data.fte}</div>
+          <div class="mgmt-effort-cell-sub">FTE working in parallel</div>
+        </div>
+      </div>
+
+      <div class="mgmt-section-lbl" style="margin-bottom:8px;">What we need from the client to proceed</div>
+      <div class="mgmt-client-block" style="margin-bottom:18px;">
+        <div class="mgmt-client-title">Client commitments required</div>
+        ${parseInt(prov) > 0 ? '<div class="mgmt-client-row"><div class="mgmt-client-lbl">Data & access provision</div><div class="mgmt-client-val">Required within ' + prov + ' days of project start</div></div>' : ''}
+        <div class="mgmt-client-row"><div class="mgmt-client-lbl">Clarification response</div><div class="mgmt-client-val">${nc} round${nc>1?'s':''}, ${ctat} days turnaround per round — SME availability: ${sme}</div></div>
+        <div class="mgmt-client-row"><div class="mgmt-client-lbl">Approval cycles</div><div class="mgmt-client-val">${na} approval round${na>1?'s':''}, ${atat} days turnaround per round</div></div>
+        <div class="mgmt-client-row"><div class="mgmt-client-lbl">UAT window</div><div class="mgmt-client-val">${uat} days required for business sign-off</div></div>
+      </div>
+
+      <div style="font-size:11px;color:#6a6a6a;line-height:1.65;padding:10px 14px;background:#f4f2ec;border-radius:8px;">
+        <strong style="color:#3a3a3a;font-weight:500;">Next step:</strong> This estimate requires team validation before a firm delivery date can be committed. Run the EDH Delivery Estimator with the delivery teams to confirm this figure.
+      </div>
+    </div>
+
+    <div class="mgmt-print-row">
+      <button class="mgmt-print-btn" id="hl-print-btn" onclick="printSummaryHL()">Print / Save as PDF</button>
+    </div>
+    <div class="mgmt-footer">
+      <span>AWS / EDH High-Level Estimator · ${projNum} · ${dateStr}</span>
+      <span>Pre-consultation · ${SCEN_NAMES[scen]} · ${size}</span>
+    </div>
+  </div>`;
+}
+
+
+function printSummaryHL() {
+  const required = [
+    { id: 'proj-name',  label: 'Project name' },
+    { id: 'proj-num',   label: 'Project number' },
+    { id: 'proj-desc',  label: 'Project description' },
+    { id: 'proj-date',  label: 'Intake date' },
+    { id: 'req-name',   label: 'Requester name' },
+  ];
+  const missing = required.filter(f => {
+    const el = document.getElementById(f.id);
+    return !el || !el.value.trim();
+  });
+  if (!selectedScen) missing.unshift({ label: 'Scenario selection' });
+  if (missing.length > 0) {
+    alert('Please complete the following required fields before printing:\n\n' +
+      missing.map(f => '  · ' + f.label).join('\n'));
+    return;
+  }
+  window.print();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+document.getElementById('proj-date').valueAsDate=new Date();
+</script>
+
+<!-- README MODAL -->
+<div class="rm-overlay" id="rm-overlay" onclick="if(event.target===this)closeReadme()">
+  <div class="rm-modal">
+    <div class="rm-topbar">
+      <div>
+        <div class="rm-topbar-title">High-Level Estimation Calculator — Instructions</div>
+        <div class="rm-topbar-sub">How to use this tool</div>
+      </div>
+      <div class="rm-close" onclick="closeReadme()">✕</div>
+    </div>
+    <div class="rm-tabs">
+      <div class="rm-tab active" onclick="showTab('what',this)">What this is</div>
+      <div class="rm-tab" onclick="showTab('how',this)">How to use it</div>
+      <div class="rm-tab" onclick="showTab('scenarios',this)">Scenarios</div>
+      <div class="rm-tab" onclick="showTab('outputs',this)">Understanding outputs</div>
+      <div class="rm-tab" onclick="showTab('glossary',this)">Glossary</div>
+    </div>
+    <div class="rm-body">
+
+      <!-- WHAT -->
+      <div class="rm-rpanel active" id="rpanel-what">
+        <div class="rm-section">
+          <div class="rm-section-title">What this tool is</div>
+          <div class="rm-prose">The High-Level Estimation Calculator is a <strong>pre-consultation sizing tool</strong>. It lets you produce an initial project estimate — calendar days, sprints, team effort, and FTE — before you have spoken to any delivery team.</div>
+          <div class="rm-prose">You fill in a short intake form, answer 13 scope questions, and the calculator produces a t-shirt-sized estimate automatically. No Engineering, DevOps, Governance, or BI input is needed.</div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">When to use it</div>
+          <div class="rm-prose">Use this calculator when you need to: give a client or stakeholder a rough timeline before any team is consulted; decide whether a project warrants a full estimation session; or size a backlog of incoming requests for portfolio planning.</div>
+          <div class="rm-callout warn"><strong>Do not use this as the final committed estimate for L or XL projects.</strong> At those sizes, the EDH Delivery Estimator with team input is required to validate the output before committing to a date.</div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">How the scoring works</div>
+          <div class="rm-prose">You answer 13 Yes / No questions about the project's scope. Each Yes adds 1 point to the complexity score. The score maps to a t-shirt size, and the size combined with your selected scenario produces the estimate.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            <span class="rm-pill g">0–3 = XS</span>
+            <span class="rm-pill g">4–6 = S</span>
+            <span class="rm-pill a">7–9 = M</span>
+            <span class="rm-pill a">10–12 = L</span>
+            <span class="rm-pill r">13 = XL</span>
+          </div>
+          <div class="rm-callout info"><strong>MAX() logic:</strong> After the requirements phase, all delivery teams work in parallel. Calendar duration equals the longest workstream — not the sum of all workstreams. This is why a project with six active teams does not take six times as long.</div>
+        </div>
+      </div>
+
+      <!-- HOW -->
+      <div class="rm-rpanel" id="rpanel-how">
+        <div class="rm-section">
+          <div class="rm-section-title">Step-by-step guide</div>
+          <div class="rm-steps">
+            <div class="rm-step"><div class="rm-step-num">1</div><div class="rm-step-body"><strong>Project intake</strong>Fill in the project number, name, intake date, and requester details. Fields marked with * are required. The project number links this estimate to your project register.</div></div>
+            <div class="rm-step"><div class="rm-step-num">2</div><div class="rm-step-body"><strong>Select a delivery scenario</strong>Choose the one that best describes this project. Read each description carefully — the difference between scenarios (e.g. S2 Bronze→Gold vs S3 Gold→Semantic) shifts the estimate significantly. If none fits exactly, pick the closest and note it in the intake notes.</div></div>
+            <div class="rm-step"><div class="rm-step-num">3</div><div class="rm-step-body"><strong>Answer the 13 scope questions</strong>Answer Yes or No based on what you know at intake — no team input needed. Each italicised explanation tells you why that question matters. Watch the live complexity score bar update as you answer — the t-shirt size pill shows your current sizing.</div></div>
+            <div class="rm-step"><div class="rm-step-num">4</div><div class="rm-step-body"><strong>Enter client TAT (optional but recommended)</strong>Fill in clarification cycles, approval cycles, provision time, and UAT window. These add calendar time on top of the build estimate. Leave the defaults if values are unknown — they represent a medium availability scenario.</div></div>
+            <div class="rm-step"><div class="rm-step-num">5</div><div class="rm-step-body"><strong>Review the estimate output</strong>The results show total days, sprints, avg FTE, internal and client person-days, a team effort bar chart, and two reference tables — all scenarios at the same size, and all sizes for your selected scenario. Use these to sense-check the estimate before sharing it.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Important limitations</div>
+          <div class="rm-callout warn"><strong>Scenario selection is the most impactful input.</strong> Choosing the wrong scenario can shift the estimate by 50% or more. If you are genuinely unsure, run two scenarios and present the range.</div>
+          <div class="rm-callout warn" style="margin-top:8px;"><strong>This tool does not account for project-specific constraints.</strong> Unusual source system architecture, regulatory requirements, team capacity issues, or concurrent project load are not captured here. Always validate L and XL estimates with the delivery teams.</div>
+        </div>
+      </div>
+
+      <!-- SCENARIOS -->
+      <div class="rm-rpanel" id="rpanel-scenarios">
+        <div class="rm-section">
+          <div class="rm-section-title">The six delivery scenarios</div>
+          <div class="rm-prose">Each scenario represents a distinct type of delivery work. The scenario is determined by where the data starts and where it needs to go.</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">S1 — New ingestion → Gold/Semantic</div><div class="rm-def-body">Files or APIs received from client. Ingestion pipelines land data and move it to Gold and/or Semantic (Redshift). Full pipeline build from scratch. Data Engineering is the dominant workstream.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S2 — Bronze → Silver → Gold</div><div class="rm-def-body">Data already in EDH Bronze. Work is transformation and layer movement only — no new source connections. DevOps effort is minimal.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S3 — Gold → Semantic (Redshift)</div><div class="rm-def-body">Curated Gold data modelled into agreed Semantic / Redshift structures. The Semantic / Modeler team leads; Data Engineering is supporting.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S4 — Redshift → Dashboards</div><div class="rm-def-body">Data already modelled in Redshift. Focus is BI build and validation only. No Data Engineering or DevOps work unless a new BI tool connection is needed.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S5 — Hybrid A (Light)</div><div class="rm-def-body">Some data exists in EDH, some is new. Limited reconciliation. Data Engineering and Semantic both involved, client dependency is moderate.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">S6 — Hybrid B (Heavy)</div><div class="rm-def-body">Mix of existing EDH and new ingestion. Reconciliation, governance review, semantic alignment, and downstream impact analysis all required. Highest overall effort of the six scenarios.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Need a different scenario type?</div>
+          <div class="rm-prose">The High-Level Estimator covers the six standard delivery scenarios. If your project is a platform migration, production break-fix, change request, multi-source consolidation, self-service enablement, DQ remediation, or API delivery — use the <strong>EDH Delivery Estimator</strong>, which covers 15 scenario types including all of these.</div>
+        </div>
+      </div>
+
+      <!-- OUTPUTS -->
+      <div class="rm-rpanel" id="rpanel-outputs">
+        <div class="rm-section">
+          <div class="rm-section-title">Understanding the output fields</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">Total calendar days</div><div class="rm-def-body">Days from kick-off to go-live. Includes waiting time (client responses, approval cycles) — not just build time.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Sprints</div><div class="rm-def-body">Calendar days ÷ 10, rounded up. One sprint = 10 calendar days (2 working weeks).</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Internal person-days</div><div class="rm-def-body">Total effort from all internal teams combined. Used for capacity planning. Three teams spending 10 days each = 30 person-days, even if calendar duration is only 10 days.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Client person-days</div><div class="rm-def-body">Effort required from the client side — clarifications, UAT, data provision, approvals. This is the cost of the project to the client's own team.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Avg internal FTE</div><div class="rm-def-body">Internal person-days ÷ total calendar days. How many delivery team members are working in parallel on average. Use for sprint staffing decisions.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Scenario comparison table</div><div class="rm-def-body">Shows all six scenarios at the same size. Use to understand where your selected scenario sits relative to others at the same complexity level.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">All-sizes table</div><div class="rm-def-body">Shows your selected scenario from XS to XL. Use to understand how the estimate changes if complexity is higher or lower than your current score suggests.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GLOSSARY -->
+      <div class="rm-rpanel" id="rpanel-glossary">
+        <div class="rm-section">
+          <div class="rm-section-title">EDH data layers</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">Bronze</div><div class="rm-def-body">Raw data landing zone — ingested as received, no transformation applied.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Silver</div><div class="rm-def-body">Cleansed and standardised — data types normalised, nulls handled, basic rules applied.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Gold</div><div class="rm-def-body">Business-ready curated data — joins, aggregations, derived fields, full business logic.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Semantic / Redshift</div><div class="rm-def-body">Modelled structures in Amazon Redshift for analytics and reporting. What BI tools query directly.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Key terms</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">T-shirt size</div><div class="rm-def-body">Relative size label (XS to XL) assigned from the complexity score. Maps to pre-calibrated workstream day values per scenario.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Sprint</div><div class="rm-def-body">10 calendar days (2 working weeks). Standard time unit for planning and reporting.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">MAX() logic</div><div class="rm-def-body">After requirements, delivery teams work in parallel. Calendar duration = the longest workstream, not the sum of all workstreams.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Client TAT</div><div class="rm-def-body">Client Turnaround Time — days for the client to respond to a clarification or approve a deliverable. Multiplied by cycle count = total waiting time added to the calendar estimate.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Complexity score</div><div class="rm-def-body">A numeric score from the Yes/No answers. Higher score = more complex = larger t-shirt size = more days.</div></div>
+          </div>
+        </div>
+        <div class="rm-section">
+          <div class="rm-section-title">Team abbreviations</div>
+          <div class="rm-def-list">
+            <div class="rm-def-row"><div class="rm-def-term">BA / PO</div><div class="rm-def-body">Business Analyst / Product Owner — requirements, mapping, user stories, UAT facilitation.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Data Eng</div><div class="rm-def-body">Data Engineering — ingestion pipelines, transformations, layer movement.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">DevOps / DataOps</div><div class="rm-def-body">DevOps handles CI/CD and environments. DataOps handles pipeline monitoring and SLA alerting — tracked separately.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Security / IAM</div><div class="rm-def-body">Security and access management — IAM roles, encryption, access policies, security reviews.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Semantic / Modeler</div><div class="rm-def-body">Semantic / Data Modeler — Redshift layer, grain definitions, schema design.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">BI / Dashboard</div><div class="rm-def-body">BI Developer — reports and dashboards in Power BI, Tableau, Looker, or QuickSight.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">QA / Data QA</div><div class="rm-def-body">Quality Assurance — data validation, reconciliation, regression testing, sign-off.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Data Steward / Gov</div><div class="rm-def-body">Data Steward / Governance — classification, lineage, retention policies, metadata, approvals.</div></div>
+            <div class="rm-def-row"><div class="rm-def-term">Client SME</div><div class="rm-def-body">Client Subject Matter Expert — the client contact for clarifications, UAT, and data access.</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function openReadme(){document.getElementById('rm-overlay').classList.add('open');}
+function closeReadme(){document.getElementById('rm-overlay').classList.remove('open');}
+function showTab(id,tab){
+  document.querySelectorAll('.rm-rpanel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.rm-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('rpanel-'+id).classList.add('active');
+  tab.classList.add('active');
+}
+</script>
+
+</body>
+</html>
